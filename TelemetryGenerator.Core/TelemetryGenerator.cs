@@ -13,20 +13,17 @@ public sealed class TelemetryGenerator
 {
     private readonly IReadOnlyList<IModule> _modules;
     private readonly BatteryModel _batteryModel;
-    private readonly TemperatureModel _temperatureModel;
     private readonly AnomalyInjector _anomalyInjector;
     private readonly MaintenanceScheduler _maintenanceScheduler;
 
     public TelemetryGenerator(
         IReadOnlyList<IModule> modules,
         BatteryModel batteryModel,
-        TemperatureModel temperatureModel,
         AnomalyInjector anomalyInjector,
         MaintenanceScheduler maintenanceScheduler)
     {
         _modules = modules;
         _batteryModel = batteryModel;
-        _temperatureModel = temperatureModel;
         _anomalyInjector = anomalyInjector;
         _maintenanceScheduler = maintenanceScheduler;
     }
@@ -54,7 +51,7 @@ public sealed class TelemetryGenerator
 
             while (state.Timestamp < phaseEnd)
             {
-                state.OutsideTemperature = _temperatureModel.GetOutsideTemperature(state.Timestamp, rnd);
+                UpdatePowerAvailability(state, step);
 
                 foreach (var module in _modules)
                 {
@@ -62,10 +59,7 @@ public sealed class TelemetryGenerator
                 }
 
                 var loadCurrent = CalculateLoadCurrent(config, state);
-                _batteryModel.Update(state, config, step, loadCurrent, state.PowerStatus, state.ChargeMode);
-
-                var loadFactor = Math.Clamp(loadCurrent / (config.McCurrentA + config.NetCurrentA + config.SpeakerCurrentA * Math.Max(1, config.SpeakersConfigured)), 0, 1);
-                _temperatureModel.UpdateInsideTemperature(state, loadFactor, step, rnd);
+                _batteryModel.Update(state, config, step, loadCurrent, state.PowerStatus, state.IsChargingFromGrid);
 
                 _anomalyInjector.Update(state, config, profile, step, rnd);
                 _maintenanceScheduler.Update(state, config, profile, rnd);
@@ -87,7 +81,7 @@ public sealed class TelemetryGenerator
             BatteryVoltage = config.BatteryFullVoltage,
             BatteryStatusOk = true,
             PowerStatus = true,
-            ChargeMode = true,
+            IsChargingFromGrid = true,
             SoundStatus = false,
             AmplifierStatus = false,
             AmplifierOutCurrentA = 0,
@@ -111,6 +105,21 @@ public sealed class TelemetryGenerator
     {
         var baseCurrent = config.McCurrentA + config.NetCurrentA;
         return baseCurrent + Math.Max(state.AmplifierOutCurrentA, 0);
+    }
+
+    private static void UpdatePowerAvailability(NodeState state, TimeSpan dt)
+    {
+        if (state.ForcedGridOutageRemaining > TimeSpan.Zero)
+        {
+            state.ForcedGridOutageRemaining = state.ForcedGridOutageRemaining > dt
+                ? state.ForcedGridOutageRemaining - dt
+                : TimeSpan.Zero;
+            state.PowerStatus = false;
+        }
+        else
+        {
+            state.PowerStatus = true;
+        }
     }
 
     private static TelemetrySample Project(NodeState state, NodeConfig config)

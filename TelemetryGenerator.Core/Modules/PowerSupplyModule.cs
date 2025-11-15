@@ -1,52 +1,52 @@
 using TelemetryGenerator.Core.Configuration;
-using TelemetryGenerator.Core.Enums;
 using TelemetryGenerator.Core.State;
 
 namespace TelemetryGenerator.Core.Modules;
 
+/// <summary>
+/// Модуль блоку живлення.
+/// - Використовує PowerStatus як "мережа є / немає";
+/// - Визначає IsChargingFromGrid;
+/// - Відмічає BatteryStatusOk = false при падінні напруги нижче порогу та вимикає споживачів.
+/// </summary>
 public sealed class PowerSupplyModule : IModule
 {
-    private TimeSpan _powerLossRemaining = TimeSpan.Zero;
+    private readonly double _chargeStartDeltaV;
+    private readonly double _chargeStopDeltaV;
 
-    public void Update(NodeState state, NodeConfig config, TimeSpan dt, Random rnd)
+    public PowerSupplyModule(
+        double chargeStartDeltaV = 0.5,
+        double chargeStopDeltaV = 0.1)
     {
-        if (state.ForcedGridOutageRemaining > TimeSpan.Zero)
-        {
-            state.ForcedGridOutageRemaining = state.ForcedGridOutageRemaining > dt
-                ? state.ForcedGridOutageRemaining - dt
-                : TimeSpan.Zero;
-            state.PowerStatus = false;
-            state.ChargeMode = false;
-            return;
-        }
-
-        if (_powerLossRemaining > TimeSpan.Zero)
-        {
-            _powerLossRemaining -= dt;
-        }
-        else if (rnd.NextDouble() < GetOutageProbability(state.Difficulty) * dt.TotalHours)
-        {
-            _powerLossRemaining = TimeSpan.FromMinutes(rnd.Next(10, 120));
-        }
-
-        var gridAvailable = _powerLossRemaining <= TimeSpan.Zero;
-        state.PowerStatus = gridAvailable;
-        state.ChargeMode = gridAvailable && state.BatteryChargeAh < state.BatteryCapacityAhEff * 0.95;
-
-        if (!gridAvailable && state.BatteryVoltage <= config.BatteryCutoffVoltage)
-        {
-            state.SoundStatus = false;
-        }
+        _chargeStartDeltaV = chargeStartDeltaV;
+        _chargeStopDeltaV = chargeStopDeltaV;
     }
 
-    private static double GetOutageProbability(Difficulty difficulty)
+    public void Update(NodeState state, NodeConfig config, TimeSpan dt, Random rng)
     {
-        return difficulty switch
+        if (state.PowerStatus)
         {
-            Difficulty.Easy => 0.01,
-            Difficulty.Normal => 0.02,
-            Difficulty.Hard => 0.04,
-            _ => 0.01
-        };
+            if (state.BatteryVoltage < config.BatteryFullVoltage - _chargeStartDeltaV)
+            {
+                state.IsChargingFromGrid = true;
+                state.BatteryStatusOk = true;
+            }
+            else if (state.BatteryVoltage > config.BatteryFullVoltage - _chargeStopDeltaV)
+            {
+                state.IsChargingFromGrid = false;
+                state.BatteryStatusOk = true;
+            }
+        }
+        else
+        {
+            state.IsChargingFromGrid = false;
+
+            if (state.BatteryVoltage <= config.BatteryCutoffVoltage)
+            {
+                state.BatteryStatusOk = false;
+                state.SoundStatus = false;
+                state.AmplifierStatus = false;
+            }
+        }
     }
 }
