@@ -70,14 +70,13 @@ var modules = new List<IModule>
     new PowerSupplyModule(),
     new MicroControllerModule(),
     new AmplifierModule(),
-    new EnvironmentModule(),
+    new EnvironmentModule(temperatureModel),
     new NetworkControllerModule(new NetworkModel(), profile)
 };
 
-var generator = new TelemetryGenerator(
+var generator = new TelemetryGenerator.Core.TelemetryGenerator(
     modules,
     batteryModel,
-    temperatureModel,
     anomalyInjector,
     maintenanceScheduler);
 

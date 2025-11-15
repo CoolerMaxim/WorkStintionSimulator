@@ -12,7 +12,7 @@ public sealed class NodeState
     public double BatteryCapacityAhEff { get; set; }
 
     public bool PowerStatus { get; set; }
-    public bool ChargeMode { get; set; }
+    public bool IsChargingFromGrid { get; set; }
     public TimeSpan ForcedGridOutageRemaining { get; set; }
 
     public bool SoundStatus { get; set; }

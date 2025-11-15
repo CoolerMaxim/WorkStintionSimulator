@@ -11,13 +11,13 @@ public sealed class BatteryModel
         TimeSpan dt,
         double loadCurrentA,
         bool gridAvailable,
-        bool chargeMode)
+        bool isChargingFromGrid)
     {
         var dtHours = Math.Max(dt.TotalHours, 0);
         var capacityEff = Math.Max(state.BatteryCapacityAhEff, 0.1);
         var charge = state.BatteryChargeAh;
 
-        if (gridAvailable && chargeMode)
+        if (gridAvailable && isChargingFromGrid)
         {
             charge += config.GridChargeCurrentA * dtHours;
         }

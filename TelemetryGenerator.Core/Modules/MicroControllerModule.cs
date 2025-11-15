@@ -1,39 +1,78 @@
 using TelemetryGenerator.Core.Configuration;
-using TelemetryGenerator.Core.Enums;
 using TelemetryGenerator.Core.State;
 
 namespace TelemetryGenerator.Core.Modules;
 
+/// <summary>
+/// Модуль мікроконтролера:
+/// - гарантує узгодженість SoundStatus при відсутності живлення;
+/// - моделює CpuTemperature;
+/// - поступово збільшує DiskSpaceUse (логи, телеметрія).
+/// </summary>
 public sealed class MicroControllerModule : IModule
 {
-    private double _transmissionTimer;
+    private readonly double _baseCpuTemperature;
+    private readonly double _loadCpuDelta;
+    private readonly double _cpuTimeConstantMinutes;
+    private readonly double _baseDiskGrowthPerMinute;
+    private readonly double _extraDiskGrowthWhenSoundPerMinute;
 
-    public void Update(NodeState state, NodeConfig config, TimeSpan dt, Random rnd)
+    public MicroControllerModule(
+        double baseCpuTemperature = 40.0,
+        double loadCpuDelta = 15.0,
+        double cpuTimeConstantMinutes = 20.0,
+        double baseDiskGrowthPerMinute = 0.001,
+        double extraDiskGrowthWhenSoundPerMinute = 0.005)
     {
-        _transmissionTimer -= dt.TotalMinutes;
-        if (_transmissionTimer <= 0)
-        {
-            var baseInterval = state.Difficulty switch
-            {
-                Difficulty.Easy => rnd.Next(20, 60),
-                Difficulty.Normal => rnd.Next(15, 45),
-                Difficulty.Hard => rnd.Next(10, 30),
-                _ => rnd.Next(20, 40)
-            };
-            _transmissionTimer = baseInterval;
-            state.SoundStatus = rnd.NextDouble() < 0.5 ? !state.SoundStatus : state.SoundStatus;
-        }
+        _baseCpuTemperature = baseCpuTemperature;
+        _loadCpuDelta = loadCpuDelta;
+        _cpuTimeConstantMinutes = cpuTimeConstantMinutes;
+        _baseDiskGrowthPerMinute = baseDiskGrowthPerMinute;
+        _extraDiskGrowthWhenSoundPerMinute = extraDiskGrowthWhenSoundPerMinute;
+    }
 
-        if (state.AnomalyType == AnomalyType.SpeakersLineShort)
+    public void Update(NodeState state, NodeConfig config, TimeSpan dt, Random rng)
+    {
+        if (!state.PowerStatus && !state.BatteryStatusOk)
         {
             state.SoundStatus = false;
         }
 
-        var computeLoad = state.SoundStatus ? 0.8 : 0.3;
-        state.CpuTemperature = state.InsideTemperature + 5 + 12 * computeLoad * (1 - state.CoolingEfficiency * 0.4);
-        state.CpuTemperature += (rnd.NextDouble() - 0.5) * 1.5;
+        UpdateCpuTemperature(state, dt, rng);
+        UpdateDiskSpaceUse(state, dt, rng);
+    }
 
-        var diskDelta = computeLoad * 0.2 + (rnd.NextDouble() - 0.5) * 0.1;
-        state.DiskSpaceUsePercent = (int)Math.Clamp(state.DiskSpaceUsePercent + diskDelta, 0, 100);
+    private void UpdateCpuTemperature(NodeState state, TimeSpan dt, Random rng)
+    {
+        var minutes = Math.Max(dt.TotalMinutes, 0.0001);
+        var target = _baseCpuTemperature + (state.SoundStatus ? _loadCpuDelta : 0.0);
+        var tau = _cpuTimeConstantMinutes;
+        var alpha = 1.0 - Math.Exp(-minutes / tau);
+        var noise = NextGaussian(rng, 0.0, 0.2);
+
+        state.CpuTemperature = state.CpuTemperature + alpha * (target - state.CpuTemperature) + noise;
+        state.CpuTemperature = Math.Clamp(state.CpuTemperature, -20.0, 120.0);
+    }
+
+    private void UpdateDiskSpaceUse(NodeState state, TimeSpan dt, Random rng)
+    {
+        var minutes = Math.Max(dt.TotalMinutes, 0.0);
+        var growth =
+            _baseDiskGrowthPerMinute * minutes +
+            (state.SoundStatus ? _extraDiskGrowthWhenSoundPerMinute * minutes : 0.0);
+
+        var noise = NextGaussian(rng, 0.0, 0.02);
+        var delta = growth + noise;
+
+        var newValue = state.DiskSpaceUsePercent + delta;
+        state.DiskSpaceUsePercent = (int)Math.Round(Math.Clamp(newValue, 0.0, 100.0));
+    }
+
+    private static double NextGaussian(Random rng, double mean, double stdDev)
+    {
+        var u1 = 1.0 - rng.NextDouble();
+        var u2 = 1.0 - rng.NextDouble();
+        var z = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+        return mean + stdDev * z;
     }
 }
