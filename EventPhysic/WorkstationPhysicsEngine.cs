@@ -1,8 +1,5 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using WorkstationJobSimulator.Events;
 using WorkstationJobSimulator.Models.wsModels;
 
@@ -17,18 +14,37 @@ public class WorkstationPhysicsEngine
         _handlers[physics.EventType] = physics;
     }
 
-    public void ApplyPhysics(Workstation ws, SimulationEvent ev)
+    public void ApplyPhysics(Workstation workstation, SimulationEvent simulationEvent)
     {
-        if (_handlers.TryGetValue(ev.GetType(), out var handler))
+        workstation.BeginEventProcessing(simulationEvent.EventName);
+        workstation.Log($"[Engine] Починаємо обробку події \"{simulationEvent.EventName}\"");
+
+        ProcessEvent(workstation, simulationEvent);
+
+        workstation.Log($"[Engine] Завершено обробку події \"{simulationEvent.EventName}\"");
+        workstation.CompleteEventProcessing(simulationEvent.EventName);
+    }
+
+    private void ProcessEvent(Workstation workstation, SimulationEvent simulationEvent)
+    {
+        if (_handlers.TryGetValue(simulationEvent.GetType(), out var handler))
         {
-            ws.Log($"[Engine] Обробляємо подію: {ev.EventName}");
-            handler.Apply(ws, ev);
+            handler.Apply(workstation, simulationEvent);
         }
         else
         {
-            ws.Log($"[Engine] Немає фізики для події {ev.GetType().Name}, просто пропускаємо.");
+            workstation.Log($"[Engine] Немає фізики для події {simulationEvent.GetType().Name}, пропускаємо.");
+        }
+
+        if (simulationEvent.SubEvents.Count == 0)
+        {
+            return;
+        }
+
+        workstation.Log($"[Engine] Опрацьовуємо {simulationEvent.SubEvents.Count} підівент(и) для \"{simulationEvent.EventName}\"");
+        foreach (var subEvent in simulationEvent.SubEvents)
+        {
+            ProcessEvent(workstation, subEvent);
         }
     }
 }
-
-

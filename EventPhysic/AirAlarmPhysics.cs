@@ -1,4 +1,4 @@
-﻿using WorkstationJobSimulator.Events;
+using WorkstationJobSimulator.Events;
 using WorkstationJobSimulator.Models.wsModels;
 
 namespace WorkstationJobSimulator.EventPhysic;
@@ -7,17 +7,13 @@ public class AirAlarmPhysics : IEventPhysics
 {
     public Type EventType => typeof(AirAlarm);
 
-    public void Apply(Workstation ws, SimulationEvent ev)
+    public void Apply(Workstation workstation, SimulationEvent simulationEvent)
     {
-        var air = (AirAlarm)ev;
+        var airAlarm = (AirAlarm)simulationEvent;
 
-        ws.Log("=== Фізика: повітряна тривога ===");
-        ws.SetAirAlarm(true, "Подія: повітряна тривога");
-
-        // Тут ти можеш робити "реальну фізику":
-        // ws.ConsumeEnergy(basePower + extra, air.Duration, "...");
-
-        ws.SetAirAlarm(false, "Кінець повітряної тривоги");
+        workstation.Log("=== Фізика: повітряна тривога ===");
+        workstation.SetAirAlarm(true, "Подія: повітряна тривога");
+        workstation.Log($"Очікуємо завершення тривоги (тривалість: {airAlarm.Duration}).");
+        workstation.SetAirAlarm(false, "Кінець повітряної тривоги");
     }
 }
-
