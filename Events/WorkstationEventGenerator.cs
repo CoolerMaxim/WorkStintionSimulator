@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using WorkstationJobSimulator.Models;
 
 namespace WorkstationJobSimulator.Events;
 
@@ -10,9 +11,12 @@ public class SimulationEventGenerator
     private readonly Random _random = new();
 
     private readonly List<(double Weight, Type Type)> _eventTypes = new();
+    private readonly SimulationParameters _parameters;
 
-    public SimulationEventGenerator()
+    public SimulationEventGenerator(SimulationParameters? parameters = null)
     {
+        _parameters = parameters ?? SimulationParameters.Default;
+
         var assembly = Assembly.GetExecutingAssembly();
 
         _eventTypes.Clear();
@@ -31,6 +35,9 @@ public class SimulationEventGenerator
                 "Не знайдено жодного класу події з EventChanceAttribute.");
         }
     }
+
+    public IReadOnlyCollection<Type> GetRegisteredEventTypes() =>
+        _eventTypes.Select(x => x.Type).ToArray();
 
     public SimulationEvent Generate()
     {
@@ -62,7 +69,10 @@ public class SimulationEventGenerator
     /// </summary>
     public TimeSpan RollNextInterval()
     {
-        int ms = _random.Next(20_000, 40_001);
+        var minSeconds = Math.Min(_parameters.MinEventIntervalSeconds, _parameters.MaxEventIntervalSeconds);
+        var maxSeconds = Math.Max(_parameters.MinEventIntervalSeconds, _parameters.MaxEventIntervalSeconds);
+
+        int ms = _random.Next(minSeconds * 1000, (maxSeconds * 1000) + 1);
         return TimeSpan.FromMilliseconds(ms);
     }
 }

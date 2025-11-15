@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using WorkstationJobSimulator.Events;
 using WorkstationJobSimulator.Models.wsModels;
 
@@ -12,6 +13,21 @@ public class WorkstationPhysicsEngine
     public void Register(IEventPhysics physics)
     {
         _handlers[physics.EventType] = physics;
+    }
+
+    public IReadOnlyCollection<Type> RegisteredPhysicsTypes => _handlers.Keys.ToArray();
+
+    public bool HasPhysicsFor(Type eventType) => _handlers.ContainsKey(eventType);
+
+    public IEnumerable<Type> GetUnmappedEvents(IEnumerable<Type> eventTypes)
+    {
+        foreach (var eventType in eventTypes)
+        {
+            if (!HasPhysicsFor(eventType))
+            {
+                yield return eventType;
+            }
+        }
     }
 
     public void ApplyPhysics(Workstation workstation, SimulationEvent simulationEvent)
