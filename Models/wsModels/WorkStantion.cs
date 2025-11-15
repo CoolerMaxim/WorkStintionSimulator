@@ -1,7 +1,4 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using WorkstationJobSimulator.Events;
+using System;
 using WorkstationJobSimulator.Models;
 
 namespace WorkstationJobSimulator.Models.wsModels;
@@ -27,13 +24,12 @@ public class Workstation
         PrintStatus();
     }
 
-    // =====================
-    // Базова утиліта стану
-    // =====================
-
     private void ChangeState(WorkstationState newState, string reason)
     {
-        if (State == newState) return;
+        if (State == newState)
+        {
+            return;
+        }
 
         State = newState;
         LogState($"Стан змінено на: {State} ({reason})");
@@ -52,7 +48,6 @@ public class Workstation
 
     /// <summary>
     /// Загальний лог для внутрішніх дій / подій.
-    /// Доступний подіям (SimulationEvent) — тому public.
     /// </summary>
     public void Log(string message)
     {
@@ -62,9 +57,6 @@ public class Workstation
         }
     }
 
-    /// <summary>
-    /// Вивести поточний стан станції в консоль.
-    /// </summary>
     public void PrintStatus()
     {
         lock (_lock)
@@ -78,10 +70,6 @@ public class Workstation
             Console.WriteLine("  -------------------------------------");
         }
     }
-
-    // =====================
-    // Методи, які ставлять на коробку сповіщення(як аудіофайл) т.щ.
-    // =====================
 
     public void SetPower(bool isOn, string reason)
     {
@@ -97,52 +85,16 @@ public class Workstation
         PrintStatus();
     }
 
-    // =====================
-    // Обробка подій
-    // =====================
-
-    public void ProcessEvent(SimulationEvent ev)
+    public void BeginEventProcessing(string eventName)
     {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine();
-        Console.WriteLine($"========== ПОЧАТОК ОБРОБКИ ПОДІЇ: \"{ev.EventName}\" ==========");
-        Console.ResetColor();
-
-        LogState($"Отримано подію: {ev.EventName}");
-        ChangeState(WorkstationState.Processing, $"починаємо обробку події {ev.EventName}");
-
-        Log($"Сталась подія \"{ev.EventName}\". Починаємо працювати над подією...");
-
-        // Тут вся логіка піде у саму подію (AirAlarm / TurningOffTheLights)
-        ev.Apply(this);
-
-        Log("Стан після застосування події:");
-        PrintStatus();
-
-        Log("Іде обробка події... (імітація 1 сек)");
-        Thread.Sleep(1000);
-
-        ResetStateAfterEvent(ev);
-
-        Log($"Завершили обробку події \"{ev.EventName}\".");
-        ChangeState(WorkstationState.Idle, $"завершено обробку події {ev.EventName}");
-
-        Log("Стан після відновлення:");
-        PrintStatus();
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"========== КІНЕЦЬ ПОДІЇ: \"{ev.EventName}\" ==========\n");
-        Console.ResetColor();
+        LogState($"Отримано подію: {eventName}");
+        ChangeState(WorkstationState.Processing, $"починаємо обробку події {eventName}");
     }
 
-    private void ResetStateAfterEvent(SimulationEvent ev)
+    public void CompleteEventProcessing(string eventName)
     {
-        Log($"Повертаємо стан робочої станції до нормального після \"{ev.EventName}\"...");
-
-        IsPowerOn = true;
-        IsAirAlarmActive = false;
-
-        Log(" -> Світло УВІМКНЕНО.");
-        Log(" -> Повітряна тривога ВІДСУТНЯ.");
+        ChangeState(WorkstationState.Idle, $"завершено обробку події {eventName}");
+        Log($"Стан після обробки події \"{eventName}\":");
+        PrintStatus();
     }
 }

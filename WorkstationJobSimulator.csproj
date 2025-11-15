@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="TelemetryGenerator.Cli/**/*.cs" />
+    <Compile Remove="TelemetryGenerator.Core/**/*.cs" />
+  </ItemGroup>
+
 </Project>
