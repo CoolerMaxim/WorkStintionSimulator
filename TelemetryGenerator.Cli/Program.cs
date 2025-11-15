@@ -8,7 +8,13 @@ using TelemetryGenerator.Core.Modules;
 using TelemetryGenerator.Core.Scenarios;
 using TelemetryGenerator.Core.Services;
 
-var arguments = ParseArguments(args);
+var arguments = CreateDefaultArguments();
+var parsedArguments = ParseArguments(args);
+
+foreach (var (key, value) in parsedArguments)
+{
+    arguments[key] = value;
+}
 
 if (!arguments.TryGetValue("--scenario", out var scenarioName))
 {
@@ -148,6 +154,21 @@ static void WriteCsv(string outputPath, IEnumerable<TelemetryGenerator.Core.Tele
             sample.MaintenanceType.ToString()
         }));
     }
+}
+
+static Dictionary<string, string> CreateDefaultArguments()
+{
+    return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["--scenario"] = "normal-day",
+        ["--difficulty"] = Difficulty.Normal.ToString(),
+        ["--start"] = DateTime.Now.ToString("O", CultureInfo.InvariantCulture),
+        ["--duration"] = "24h",
+        ["--step-minutes"] = "15",
+        ["--workstation-id"] = "WS-001",
+        ["--speakers-configured"] = "4",
+        ["--output"] = Path.Combine(Environment.CurrentDirectory, "telemetry.csv")
+    };
 }
 
 static Dictionary<string, string> ParseArguments(string[] args)
