@@ -22,9 +22,17 @@ var physicsEngine = new WorkstationPhysicsEngine();
 PhysicsRegistry.RegisterAllEventPhysics(physicsEngine);
 
 ValidatePhysicsMappings(generator, physicsEngine);
+DisplayInitialSystemState(workstation, physicsEngine);
 
 Console.WriteLine("Натисніть будь-яку клавішу, щоб почати симуляцію...");
-Console.ReadKey();
+if (Console.IsInputRedirected)
+{
+    Console.WriteLine("[INIT] Вхід консолі перенаправлено, стартуємо автоматично...");
+}
+else
+{
+    Console.ReadKey(true);
+}
 Console.Clear();
 
 for (int i = 0; i < parameters.Iterations; i++)
@@ -34,12 +42,12 @@ for (int i = 0; i < parameters.Iterations; i++)
 
     var wait = generator.RollNextInterval();
     Console.WriteLine($"[LOG] Очікуємо наступну подію приблизно через {wait.TotalSeconds:F0} секунд...");
-    Thread.Sleep(wait);
+    WaitWithProgress(wait);
 
     var simulationEvent = generator.Generate();
 
     Console.WriteLine();
-    Console.WriteLine($"[ENGINE] Згенеровано подію: \"{simulationEvent.EventName}\" (тривалість: {simulationEvent.Duration})");
+    ShowEventDetails(simulationEvent);
 
     physicsEngine.ApplyPhysics(workstation, simulationEvent);
 
@@ -48,7 +56,10 @@ for (int i = 0; i < parameters.Iterations; i++)
 
 Console.WriteLine(new string('=', 70));
 Console.WriteLine("Симуляцію завершено. Натисніть будь-яку клавішу для виходу...");
-Console.ReadKey();
+if (!Console.IsInputRedirected)
+{
+    Console.ReadKey(true);
+}
 
 void ShowBanner()
 {
@@ -106,7 +117,99 @@ void ShowCurrentSystemState(Workstation ws)
 {
     Console.WriteLine();
     Console.ForegroundColor = ConsoleColor.Magenta;
-    Console.WriteLine("[STATE] Підсумок поточного стану системи:");
+    Console.WriteLine("[STATE] Поточний стан системи та модулів:");
     Console.ResetColor();
+
+    Console.WriteLine($"    • Робоча станція: {ws.Name}");
+    Console.WriteLine($"    • Стан виробничого процесу: {ws.State}");
+    Console.WriteLine($"    • Модуль живлення: {(ws.IsPowerOn ? "УВІМКНЕНО" : "ВІДСУТНЄ")}");
+    Console.WriteLine($"    • Модуль повітряної тривоги: {(ws.IsAirAlarmActive ? "АКТИВНИЙ" : "НЕ АКТИВНИЙ")}");
+    Console.WriteLine();
+    Console.WriteLine("    Деталі стану станції:");
     ws.PrintStatus();
+}
+
+void WaitWithProgress(TimeSpan waitDuration)
+{
+    if (waitDuration <= TimeSpan.Zero)
+    {
+        return;
+    }
+
+    const int updateIntervalMs = 1000;
+    var totalMilliseconds = (int)Math.Round(waitDuration.TotalMilliseconds);
+
+    var elapsed = 0;
+    while (elapsed + updateIntervalMs <= totalMilliseconds)
+    {
+        Thread.Sleep(updateIntervalMs);
+        elapsed += updateIntervalMs;
+
+        var remaining = Math.Max(totalMilliseconds - elapsed, 0);
+        Console.WriteLine(
+            $"    ... минуло {elapsed / 1000} с (залишилось ≈ {Math.Ceiling(remaining / 1000.0)} с)");
+    }
+
+    var remainder = totalMilliseconds - elapsed;
+    if (remainder > 0)
+    {
+        Thread.Sleep(remainder);
+    }
+
+    Console.WriteLine("    ... очікування завершено!");
+}
+
+void ShowEventDetails(SimulationEvent simulationEvent)
+{
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("[EVENT] Згенеровано нову подію в системі:");
+    Console.ResetColor();
+    PrintEvent(simulationEvent, indentLevel: 0);
+}
+
+void PrintEvent(SimulationEvent simulationEvent, int indentLevel)
+{
+    var indent = new string(' ', indentLevel * 4);
+    Console.WriteLine(
+        $"{indent}- {simulationEvent.EventName} (тривалість: {FormatDuration(simulationEvent.Duration)})");
+
+    foreach (var subEvent in simulationEvent.SubEvents)
+    {
+        PrintEvent(subEvent, indentLevel + 1);
+    }
+}
+
+string FormatDuration(TimeSpan duration)
+{
+    if (duration.TotalHours >= 1)
+    {
+        return $"{duration.TotalHours:F1} год";
+    }
+
+    if (duration.TotalMinutes >= 1)
+    {
+        return $"{duration.TotalMinutes:F0} хв";
+    }
+
+    return $"{duration.TotalSeconds:F0} с";
+}
+
+void DisplayInitialSystemState(Workstation workstation, WorkstationPhysicsEngine engine)
+{
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.Blue;
+    Console.WriteLine("[INIT] Початковий стан системи та активні модулі фізики:");
+    Console.ResetColor();
+
+    Console.WriteLine($"    • Робоча станція: {workstation.Name}");
+    Console.WriteLine(
+        $"    • Зареєстровано модулів фізики: {engine.RegisteredPhysicsTypes.Count}");
+
+    foreach (var module in engine.RegisteredPhysicsTypes.OrderBy(t => t.Name))
+    {
+        Console.WriteLine($"       - {module.Name}");
+    }
+
+    Console.WriteLine();
+    ShowCurrentSystemState(workstation);
 }
