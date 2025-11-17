@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
@@ -9,10 +11,87 @@ namespace TelemetryGenerator.Core.Services;
 public sealed class AnomalyInjector
 {
     private sealed record ActiveAnomaly(AnomalyType Type, TimeSpan Remaining, Action<NodeState> Restore);
+    private sealed record ScheduledAnomaly(AnomalyType Type, TimeSpan Remaining);
 
     private readonly List<ActiveAnomaly> _active = new();
+    private readonly List<ScheduledAnomaly> _scheduled = new();
+    private readonly AnomalyConfiguration _configuration;
+
+    public AnomalyInjector(AnomalyConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
 
     public void Update(NodeState state, NodeConfig config, DifficultyProfile profile, TimeSpan dt, Random rnd)
+    {
+        ResolveActiveAnomalies(state, dt);
+        ProcessScheduledAnomalies(state, config, profile, dt, rnd);
+
+        var availableSlots = profile.MaxParallelAnomalies - _active.Count;
+
+        if (availableSlots > 0 && rnd.NextDouble() < profile.AnomalyRate * dt.TotalHours)
+        {
+            var nextType = _configuration.PickWeighted(rnd, Enum.GetValues<AnomalyType>());
+            if (nextType.HasValue)
+            {
+                ForceAnomaly(nextType.Value, state, config, state.Difficulty, rnd);
+            }
+        }
+
+        availableSlots = profile.MaxParallelAnomalies - _active.Count;
+
+        if (availableSlots > 0 && _active.Count > 0 && rnd.NextDouble() < _configuration.CombinationProbability)
+        {
+            var occupiedTypes = _active.Select(a => a.Type).ToHashSet();
+            var candidate = _configuration.PickWeighted(rnd, Enum.GetValues<AnomalyType>().Except(occupiedTypes));
+            if (candidate.HasValue)
+            {
+                ForceAnomaly(candidate.Value, state, config, state.Difficulty, rnd);
+            }
+        }
+
+        state.IsAnomaly = _active.Count > 0;
+        state.AnomalyType = _active.Count > 0 ? _active[^1].Type : AnomalyType.None;
+    }
+
+    public void ForceAnomaly(AnomalyType type, NodeState state, NodeConfig config, Difficulty difficulty, Random rnd)
+    {
+        var duration = _configuration.GetDuration(type, difficulty, rnd);
+        var anomaly = type switch
+        {
+            AnomalyType.BatteryCutoff => CreateBatteryCutoff(state, config, duration),
+            AnomalyType.NetControllerFailure => CreateNetControllerFailure(state, duration),
+            AnomalyType.SpeakersPartialFailure => CreateSpeakersPartialFailure(state, duration),
+            AnomalyType.SpeakersLineOpen => CreateSpeakersLineOpen(state, duration),
+            AnomalyType.SpeakersLineShort => CreateSpeakersLineShort(state, duration),
+            AnomalyType.BatteryDegradation => CreateBatteryDegradation(state, config, duration),
+            AnomalyType.NetDegradation => CreateNetDegradation(state, duration),
+            AnomalyType.CoolingDegradation => CreateCoolingDegradation(state, duration),
+            AnomalyType.TempSensorFailure => CreateTempSensorFailure(state, duration, rnd),
+            _ => null
+        };
+
+        if (anomaly is not null)
+        {
+            _active.Add(anomaly);
+            state.IsAnomaly = true;
+            state.AnomalyType = type;
+            state.FaultCounters.RecordAnomaly(type);
+            state.AddIncident("anomaly", $"Anomaly {type} detected.");
+
+            var dependent = _configuration.Dependencies.Where(d => d.Trigger == type);
+            foreach (var dependency in dependent)
+            {
+                foreach (var followUp in dependency.FollowUps)
+                {
+                    var delay = dependency.DelayRange.Sample(rnd);
+                    _scheduled.Add(new ScheduledAnomaly(followUp, delay));
+                }
+            }
+        }
+    }
+
+    private void ResolveActiveAnomalies(NodeState state, TimeSpan dt)
     {
         for (var i = _active.Count - 1; i >= 0; i--)
         {
@@ -29,45 +108,29 @@ public sealed class AnomalyInjector
                 _active[i] = updated;
             }
         }
-
-        if (_active.Count < profile.MaxParallelAnomalies && rnd.NextDouble() < profile.AnomalyRate * dt.TotalHours)
-        {
-            var options = Enum.GetValues<AnomalyType>().Where(t => t != AnomalyType.None).ToArray();
-            var randomType = options[rnd.Next(options.Length)];
-            ForceAnomaly(randomType, state, config, rnd);
-        }
-
-        state.IsAnomaly = _active.Count > 0;
-        state.AnomalyType = _active.Count > 0 ? _active[^1].Type : AnomalyType.None;
     }
 
-    public void ForceAnomaly(AnomalyType type, NodeState state, NodeConfig config, Random rnd)
+    private void ProcessScheduledAnomalies(NodeState state, NodeConfig config, DifficultyProfile profile, TimeSpan dt, Random rnd)
     {
-        var anomaly = type switch
+        for (var i = _scheduled.Count - 1; i >= 0; i--)
         {
-            AnomalyType.BatteryCutoff => CreateBatteryCutoff(state, config, rnd),
-            AnomalyType.NetControllerFailure => CreateNetControllerFailure(state, rnd),
-            AnomalyType.SpeakersPartialFailure => CreateSpeakersPartialFailure(state, rnd),
-            AnomalyType.SpeakersLineOpen => CreateSpeakersLineOpen(state, rnd),
-            AnomalyType.SpeakersLineShort => CreateSpeakersLineShort(state, rnd),
-            AnomalyType.BatteryDegradation => CreateBatteryDegradation(state, config, rnd),
-            AnomalyType.NetDegradation => CreateNetDegradation(state, rnd),
-            AnomalyType.CoolingDegradation => CreateCoolingDegradation(state, rnd),
-            AnomalyType.TempSensorFailure => CreateTempSensorFailure(state, rnd),
-            _ => null
-        };
-
-        if (anomaly is not null)
-        {
-            _active.Add(anomaly);
-            state.IsAnomaly = true;
-            state.AnomalyType = type;
-            state.FaultCounters.RecordAnomaly(type);
-            state.AddIncident("anomaly", $"Anomaly {type} detected.");
+            var scheduled = _scheduled[i] with { Remaining = _scheduled[i].Remaining - dt };
+            if (scheduled.Remaining <= TimeSpan.Zero)
+            {
+                _scheduled.RemoveAt(i);
+                if (_active.Count < profile.MaxParallelAnomalies)
+                {
+                    ForceAnomaly(scheduled.Type, state, config, state.Difficulty, rnd);
+                }
+            }
+            else
+            {
+                _scheduled[i] = scheduled;
+            }
         }
     }
 
-    private ActiveAnomaly CreateBatteryCutoff(NodeState state, NodeConfig config, Random rnd)
+    private ActiveAnomaly CreateBatteryCutoff(NodeState state, NodeConfig config, TimeSpan duration)
     {
         var previousStatus = state.BatteryStatusOk;
         var previousVoltage = state.BatteryVoltage;
@@ -77,7 +140,7 @@ public sealed class AnomalyInjector
         state.BatteryStatusOk = false;
         return new ActiveAnomaly(
             AnomalyType.BatteryCutoff,
-            TimeSpan.FromMinutes(rnd.Next(30, 180)),
+            duration,
             s =>
             {
                 s.BatteryStatusOk = previousStatus;
@@ -86,13 +149,13 @@ public sealed class AnomalyInjector
             });
     }
 
-    private ActiveAnomaly CreateNetControllerFailure(NodeState state, Random rnd)
+    private ActiveAnomaly CreateNetControllerFailure(NodeState state, TimeSpan duration)
     {
         var previousLatency = state.NetworkLatencyMs;
         var previousSignal = state.SignalStrengthDbm;
         return new ActiveAnomaly(
             AnomalyType.NetControllerFailure,
-            TimeSpan.FromMinutes(rnd.Next(60, 240)),
+            duration,
             s =>
             {
                 s.NetworkLatencyMs = previousLatency;
@@ -100,27 +163,27 @@ public sealed class AnomalyInjector
             });
     }
 
-    private ActiveAnomaly CreateSpeakersPartialFailure(NodeState state, Random rnd)
+    private ActiveAnomaly CreateSpeakersPartialFailure(NodeState state, TimeSpan duration)
     {
         var previous = state.SpeakersEffective;
         state.SpeakersEffective = Math.Max(1, (int)Math.Round(state.SpeakersEffective * 0.5));
         return new ActiveAnomaly(
             AnomalyType.SpeakersPartialFailure,
-            TimeSpan.FromMinutes(rnd.Next(120, 360)),
+            duration,
             s => s.SpeakersEffective = previous);
     }
 
-    private ActiveAnomaly CreateSpeakersLineOpen(NodeState state, Random rnd)
+    private ActiveAnomaly CreateSpeakersLineOpen(NodeState state, TimeSpan duration)
     {
         var previous = state.SpeakersEffective;
         state.SpeakersEffective = 0;
         return new ActiveAnomaly(
             AnomalyType.SpeakersLineOpen,
-            TimeSpan.FromMinutes(rnd.Next(60, 240)),
+            duration,
             s => s.SpeakersEffective = previous);
     }
 
-    private ActiveAnomaly CreateSpeakersLineShort(NodeState state, Random rnd)
+    private ActiveAnomaly CreateSpeakersLineShort(NodeState state, TimeSpan duration)
     {
         var previousSpeakers = state.SpeakersEffective;
         var previousSound = state.SoundStatus;
@@ -128,7 +191,7 @@ public sealed class AnomalyInjector
         state.SoundStatus = false;
         return new ActiveAnomaly(
             AnomalyType.SpeakersLineShort,
-            TimeSpan.FromMinutes(rnd.Next(20, 120)),
+            duration,
             s =>
             {
                 s.SpeakersEffective = previousSpeakers;
@@ -136,23 +199,23 @@ public sealed class AnomalyInjector
             });
     }
 
-    private ActiveAnomaly CreateBatteryDegradation(NodeState state, NodeConfig config, Random rnd)
+    private ActiveAnomaly CreateBatteryDegradation(NodeState state, NodeConfig config, TimeSpan duration)
     {
         var previousCapacity = state.BatteryCapacityAhEff;
         state.BatteryCapacityAhEff = Math.Max(config.BatteryCapacityAh * 0.4, state.BatteryCapacityAhEff * 0.8);
         return new ActiveAnomaly(
             AnomalyType.BatteryDegradation,
-            TimeSpan.FromMinutes(rnd.Next(240, 720)),
+            duration,
             s => s.BatteryCapacityAhEff = Math.Max(s.BatteryCapacityAhEff, previousCapacity));
     }
 
-    private ActiveAnomaly CreateNetDegradation(NodeState state, Random rnd)
+    private ActiveAnomaly CreateNetDegradation(NodeState state, TimeSpan duration)
     {
         var previous = state.AnomalyType;
         state.AnomalyType = AnomalyType.NetDegradation;
         return new ActiveAnomaly(
             AnomalyType.NetDegradation,
-            TimeSpan.FromMinutes(rnd.Next(120, 360)),
+            duration,
             s =>
             {
                 if (s.AnomalyType == AnomalyType.NetDegradation)
@@ -162,17 +225,17 @@ public sealed class AnomalyInjector
             });
     }
 
-    private ActiveAnomaly CreateCoolingDegradation(NodeState state, Random rnd)
+    private ActiveAnomaly CreateCoolingDegradation(NodeState state, TimeSpan duration)
     {
         var previous = state.CoolingEfficiency;
         state.CoolingEfficiency = Math.Max(0.2, state.CoolingEfficiency - 0.4);
         return new ActiveAnomaly(
             AnomalyType.CoolingDegradation,
-            TimeSpan.FromMinutes(rnd.Next(180, 600)),
+            duration,
             s => s.CoolingEfficiency = Math.Max(s.CoolingEfficiency, previous));
     }
 
-    private ActiveAnomaly CreateTempSensorFailure(NodeState state, Random rnd)
+    private ActiveAnomaly CreateTempSensorFailure(NodeState state, TimeSpan duration, Random rnd)
     {
         var previousInside = state.InsideTemperature;
         var previousOutside = state.OutsideTemperature;
@@ -180,7 +243,7 @@ public sealed class AnomalyInjector
         state.OutsideTemperature += rnd.NextDouble() * 30 - 15;
         return new ActiveAnomaly(
             AnomalyType.TempSensorFailure,
-            TimeSpan.FromMinutes(rnd.Next(60, 180)),
+            duration,
             s =>
             {
                 s.InsideTemperature = previousInside;
