@@ -87,5 +87,11 @@ public sealed class MaintenanceScheduler
 
         state.MaintenanceType = maintenanceType;
         state.IsAnomaly = maintenanceType != MaintenanceType.None && state.IsAnomaly && state.AnomalyType != AnomalyType.None;
+
+        if (maintenanceType != MaintenanceType.None)
+        {
+            state.FaultCounters.RecordMaintenance(maintenanceType);
+            state.AddIncident("maintenance", $"Maintenance performed: {maintenanceType}.");
+        }
     }
 }

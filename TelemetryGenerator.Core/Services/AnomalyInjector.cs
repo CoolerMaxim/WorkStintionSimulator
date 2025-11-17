@@ -22,6 +22,7 @@ public sealed class AnomalyInjector
             {
                 anomaly.Restore(state);
                 _active.RemoveAt(i);
+                state.AddIncident("anomaly", $"Anomaly {anomaly.Type} resolved.");
             }
             else
             {
@@ -61,6 +62,8 @@ public sealed class AnomalyInjector
             _active.Add(anomaly);
             state.IsAnomaly = true;
             state.AnomalyType = type;
+            state.FaultCounters.RecordAnomaly(type);
+            state.AddIncident("anomaly", $"Anomaly {type} detected.");
         }
     }
 

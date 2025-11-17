@@ -128,7 +128,7 @@ static void WriteCsv(string outputPath, IEnumerable<TelemetryGenerator.Core.Tele
     }
 
     using var writer = new StreamWriter(outputPath);
-    writer.WriteLine("Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,Temperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus,AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType");
+    writer.WriteLine("Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,Temperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus,AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType,NodeUptimeMinutes,TotalRuntimeHours,RestartCount,RecentRestarts,SoftwareHealth,FirmwareVersion,SoftwareVersion,HardwareRevision,FaultCounters,HealthState,IncidentLog,NodeOnline");
 
     foreach (var sample in samples)
     {
@@ -151,7 +151,19 @@ static void WriteCsv(string outputPath, IEnumerable<TelemetryGenerator.Core.Tele
             sample.SpeakersConfigured.ToString(CultureInfo.InvariantCulture),
             sample.IsAnomaly ? "true" : "false",
             sample.AnomalyType.ToString(),
-            sample.MaintenanceType.ToString()
+            sample.MaintenanceType.ToString(),
+            sample.NodeUptime.TotalMinutes.ToString("F1", CultureInfo.InvariantCulture),
+            sample.TotalRuntime.TotalHours.ToString("F1", CultureInfo.InvariantCulture),
+            sample.RestartCount.ToString(CultureInfo.InvariantCulture),
+            Quote(string.Join('|', sample.RestartHistory.Select(r => r.ToString("O", CultureInfo.InvariantCulture)))),
+            Quote(sample.SoftwareHealth.ToSummaryString()),
+            Quote(sample.FirmwareVersion),
+            Quote(sample.SoftwareVersion),
+            Quote(sample.HardwareRevision),
+            Quote(sample.FaultCounters.ToSummaryString()),
+            sample.HealthState.ToString(),
+            Quote(string.Join('|', sample.IncidentLog.Select(i => i.ToSummaryString()))),
+            sample.IsNodeOnline ? "true" : "false"
         }));
     }
 }
@@ -219,4 +231,10 @@ static bool TryParseDuration(string value, out TimeSpan duration)
 
     duration = TimeSpan.Zero;
     return false;
+}
+
+static string Quote(string value)
+{
+    value ??= string.Empty;
+    return $"\"{value.Replace("\"", "\"\"")}\"";
 }

@@ -64,6 +64,8 @@ public sealed class TelemetryGenerator
                 _anomalyInjector.Update(state, config, profile, step, rnd);
                 _maintenanceScheduler.Update(state, config, profile, rnd);
 
+                UpdateSupervisorySignals(state, config, step);
+
                 yield return Project(state, config);
 
                 state.Timestamp += step;
@@ -73,7 +75,7 @@ public sealed class TelemetryGenerator
 
     private static NodeState CreateInitialState(NodeConfig config, Scenario scenario, DateTime startTime)
     {
-        return new NodeState
+        var state = new NodeState
         {
             Timestamp = startTime,
             BatteryCapacityAhEff = config.BatteryCapacityAh,
@@ -97,8 +99,16 @@ public sealed class TelemetryGenerator
             IsAnomaly = false,
             AnomalyType = AnomalyType.None,
             MaintenanceType = MaintenanceType.None,
-            Difficulty = scenario.Difficulty
+            Difficulty = scenario.Difficulty,
+            IsNodeOnline = true,
+            HealthState = HealthState.Nominal,
+            Uptime = TimeSpan.Zero,
+            TotalRuntime = TimeSpan.Zero
         };
+
+        state.RecordInitialBoot(startTime);
+
+        return state;
     }
 
     private static double CalculateLoadCurrent(NodeConfig config, NodeState state)
@@ -142,6 +152,130 @@ public sealed class TelemetryGenerator
             config.SpeakersConfigured,
             state.IsAnomaly,
             state.AnomalyType,
-            state.MaintenanceType);
+            state.MaintenanceType,
+            state.Uptime,
+            state.TotalRuntime,
+            state.RebootCount,
+            state.GetRestartHistorySnapshot(),
+            state.SoftwareHealth.Clone(),
+            state.FirmwareVersion,
+            state.SoftwareVersion,
+            state.HardwareRevision,
+            state.FaultCounters.CreateSnapshot(),
+            state.GetIncidentLogSnapshot(),
+            state.HealthState,
+            state.IsNodeOnline);
+    }
+
+    private static void UpdateSupervisorySignals(NodeState state, NodeConfig config, TimeSpan step)
+    {
+        var wasOnline = state.IsNodeOnline;
+        var hasPower = state.PowerStatus || (state.BatteryStatusOk && state.BatteryVoltage > config.BatteryCutoffVoltage - 0.2);
+
+        if (!hasPower)
+        {
+            if (wasOnline)
+            {
+                state.IsNodeOnline = false;
+                state.Uptime = TimeSpan.Zero;
+                state.AddIncident("power", "Node lost power and shut down.");
+            }
+        }
+        else
+        {
+            if (!wasOnline)
+            {
+                state.RecordRestart(state.Timestamp, "Power restored");
+            }
+
+            state.Uptime += step;
+            state.TotalRuntime += step;
+        }
+
+        UpdateSoftwareHealth(state);
+        UpdateHealthState(state);
+    }
+
+    private static void UpdateSoftwareHealth(NodeState state)
+    {
+        var previous = state.SoftwareHealth.Clone();
+        var snapshot = state.SoftwareHealth;
+
+        snapshot.FirmwareHealthy = true;
+        snapshot.StorageSubsystemHealthy = state.DiskSpaceUsePercent < 95;
+        snapshot.NetworkStackHealthy = state.SignalStrengthDbm > -95 && state.NetworkLatencyMs < 2500;
+        snapshot.ApplicationHealthy = state.CpuTemperature < 90 && state.DiskSpaceUsePercent < 98;
+
+        switch (state.AnomalyType)
+        {
+            case AnomalyType.NetControllerFailure:
+            case AnomalyType.NetDegradation:
+                snapshot.NetworkStackHealthy = false;
+                break;
+            case AnomalyType.TempSensorFailure:
+                snapshot.ApplicationHealthy = false;
+                break;
+            case AnomalyType.SpeakersPartialFailure:
+            case AnomalyType.SpeakersLineOpen:
+            case AnomalyType.SpeakersLineShort:
+                snapshot.ApplicationHealthy = false;
+                break;
+        }
+
+        if (state.DiskSpaceUsePercent >= 98)
+        {
+            snapshot.StorageSubsystemHealthy = false;
+        }
+
+        if (state.CpuTemperature >= 95)
+        {
+            snapshot.ApplicationHealthy = false;
+        }
+
+        TrackHealthChange(previous.FirmwareHealthy, snapshot.FirmwareHealthy, state, "firmware");
+        TrackHealthChange(previous.ApplicationHealthy, snapshot.ApplicationHealthy, state, "application");
+        TrackHealthChange(previous.NetworkStackHealthy, snapshot.NetworkStackHealthy, state, "network");
+        TrackHealthChange(previous.StorageSubsystemHealthy, snapshot.StorageSubsystemHealthy, state, "storage");
+    }
+
+    private static void TrackHealthChange(bool previous, bool current, NodeState state, string component)
+    {
+        if (previous == current)
+        {
+            return;
+        }
+
+        var status = current ? "restored" : "degraded";
+        state.AddIncident("software-health", $"Component {component} {status}.");
+    }
+
+    private static void UpdateHealthState(NodeState state)
+    {
+        var previous = state.HealthState;
+
+        HealthState newState;
+        if (!state.IsNodeOnline)
+        {
+            newState = HealthState.Offline;
+        }
+        else if (!state.BatteryStatusOk || state.SignalStrengthDbm <= -105 || state.NetworkLatencyMs >= 4000)
+        {
+            newState = HealthState.Critical;
+        }
+        else if (state.IsAnomaly || !state.SoftwareHealth.IsHealthy || state.DiskSpaceUsePercent >= 90 || state.CpuTemperature >= 80)
+        {
+            newState = HealthState.Warning;
+        }
+        else
+        {
+            newState = HealthState.Nominal;
+        }
+
+        state.HealthState = newState;
+
+        if (previous != newState)
+        {
+            state.AddIncident("health", $"Health state changed from {previous} to {newState}.");
+        }
     }
 }
