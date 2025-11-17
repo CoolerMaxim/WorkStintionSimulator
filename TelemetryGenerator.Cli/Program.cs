@@ -65,8 +65,13 @@ if (!arguments.TryGetValue("--output", out var outputPath) || string.IsNullOrWhi
 }
 
 var step = TimeSpan.FromMinutes(stepMinutes);
-var config = NodeConfig.CreateDefault(workStationId, speakers);
-var anomalyInjector = new AnomalyInjector();
+var rnd = new Random();
+var nodeProfile = arguments.TryGetValue("--node-profile", out var nodeProfileValue)
+    ? nodeProfileValue
+    : "randomized";
+var config = CreateNodeConfig(nodeProfile, workStationId, speakers, difficulty, rnd);
+var anomalyConfiguration = AnomalyConfigurationFactory.CreateDefault();
+var anomalyInjector = new AnomalyInjector(anomalyConfiguration);
 var maintenanceScheduler = new MaintenanceScheduler();
 var batteryModel = new BatteryModel();
 var temperatureModel = new TemperatureModel();
@@ -97,7 +102,6 @@ catch (ArgumentOutOfRangeException ex)
     return 1;
 }
 var endTime = startTime + duration;
-var rnd = new Random();
 var samples = generator
     .Run(config, scenario, startTime, step, rnd)
     .TakeWhile(sample => sample.Timestamp < endTime);
@@ -176,9 +180,10 @@ static Dictionary<string, string> CreateDefaultArguments()
         ["--difficulty"] = Difficulty.Normal.ToString(),
         ["--start"] = DateTime.Now.ToString("O", CultureInfo.InvariantCulture),
         ["--duration"] = "24h",
-        ["--step-minutes"] = "15",
+        ["--step-minutes"] = "5",
         ["--workstation-id"] = "WS-001",
         ["--speakers-configured"] = "4",
+        ["--node-profile"] = "randomized",
         ["--output"] = Path.Combine(Environment.CurrentDirectory, "telemetry.csv")
     };
 }
@@ -231,6 +236,17 @@ static bool TryParseDuration(string value, out TimeSpan duration)
 
     duration = TimeSpan.Zero;
     return false;
+}
+
+static NodeConfig CreateNodeConfig(string profile, string workStationId, int speakersConfigured, Difficulty difficulty, Random rnd)
+{
+    profile ??= string.Empty;
+    return profile.ToLowerInvariant() switch
+    {
+        "fixed" or "baseline" => NodeConfig.CreateDefault(workStationId, speakersConfigured),
+        "random" or "randomized" or "mixed" => NodeConfigurationFactory.CreateRandomized(workStationId, speakersConfigured, difficulty, rnd),
+        _ => NodeConfigurationFactory.CreateRandomized(workStationId, speakersConfigured, difficulty, rnd)
+    };
 }
 
 static string Quote(string value)

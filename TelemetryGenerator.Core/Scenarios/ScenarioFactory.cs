@@ -49,7 +49,7 @@ public static class ScenarioFactory
                 {
                     state.ForcedGridOutageRemaining = TimeSpan.FromHours(12);
                     state.SoundStatus = false;
-                    injector.ForceAnomaly(AnomalyType.BatteryCutoff, state, config, rnd);
+                    injector.ForceAnomaly(AnomalyType.BatteryCutoff, state, config, state.Difficulty, rnd);
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(6), (state, config, profile, rnd) =>
                 {
@@ -73,7 +73,7 @@ public static class ScenarioFactory
                 new ScenarioPhase(TimeSpan.FromHours(20), (state, config, profile, rnd) =>
                 {
                     state.SpeakersEffective = Math.Max(1, config.SpeakersConfigured - 2);
-                    injector.ForceAnomaly(AnomalyType.SpeakersPartialFailure, state, config, rnd);
+                    injector.ForceAnomaly(AnomalyType.SpeakersPartialFailure, state, config, state.Difficulty, rnd);
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(4), (state, config, profile, rnd) =>
                 {
@@ -95,11 +95,11 @@ public static class ScenarioFactory
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(10), (state, config, profile, rnd) =>
                 {
-                    injector.ForceAnomaly(AnomalyType.NetDegradation, state, config, rnd);
+                    injector.ForceAnomaly(AnomalyType.NetDegradation, state, config, state.Difficulty, rnd);
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(4), (state, config, profile, rnd) =>
                 {
-                    injector.ForceAnomaly(AnomalyType.NetControllerFailure, state, config, rnd);
+                    injector.ForceAnomaly(AnomalyType.NetControllerFailure, state, config, state.Difficulty, rnd);
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(6), (state, config, profile, rnd) =>
                 {
@@ -122,7 +122,7 @@ public static class ScenarioFactory
                 new ScenarioPhase(TimeSpan.FromHours(12), (state, config, profile, rnd) =>
                 {
                     state.CoolingEfficiency = 0.5;
-                    injector.ForceAnomaly(AnomalyType.CoolingDegradation, state, config, rnd);
+                    injector.ForceAnomaly(AnomalyType.CoolingDegradation, state, config, state.Difficulty, rnd);
                 }),
                 new ScenarioPhase(TimeSpan.FromHours(6), (state, config, profile, rnd) =>
                 {
