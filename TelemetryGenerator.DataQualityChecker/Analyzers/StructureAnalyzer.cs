@@ -8,13 +8,7 @@ public sealed class StructureAnalyzer
     {
         var result = new AnalyzerResult("StructureAnalyzer");
 
-        if (loadResult.MissingColumns.Any())
-        {
-            foreach (var missing in loadResult.MissingColumns)
-            {
-                result.AddIssue(IssueSeverity.Critical, $"Missing required column '{missing}'");
-            }
-        }
+        result.Issues.AddRange(loadResult.Issues);
 
         if (!loadResult.Records.Any())
         {
@@ -46,6 +40,7 @@ public sealed class StructureAnalyzer
         result.AddMetric("recordCount", loadResult.Records.Count);
         result.AddMetric("duplicateCount", duplicateCount);
         result.AddMetric("nanOrInvalidCount", nanSeries);
+        result.AddMetric("missingColumnCount", loadResult.MissingColumns.Count);
 
         return result;
     }

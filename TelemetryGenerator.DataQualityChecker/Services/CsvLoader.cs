@@ -36,7 +36,7 @@ public sealed class CsvLoader
         if (!File.Exists(path))
         {
             issues.Add(new AnalysisIssue(IssueSeverity.Critical, $"File not found: {path}"));
-            return new CsvLoadResult(Array.Empty<TelemetryRecord>(), issues, new List<string> { path });
+            return new CsvLoadResult(Array.Empty<TelemetryRecord>(), issues, Array.Empty<string>());
         }
 
         using var reader = new StreamReader(path);
