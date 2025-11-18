@@ -1,10 +1,12 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.Core", "TelemetryGenerator.Core\TelemetryGenerator.Core.csproj", "{6EAE0AA2-1F3F-4C86-AF3A-4A2E7F8F6D26}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.Cli", "TelemetryGenerator.Cli\TelemetryGenerator.Cli.csproj", "{37614F0C-6AC2-447A-BFA7-48FC1AA6A7C0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.DataQualityChecker", "TelemetryGenerator.DataQualityChecker\TelemetryGenerator.DataQualityChecker.csproj", "{E520BFDA-8118-409A-8B43-26F1F8813438}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,6 +22,10 @@ Global
 		{37614F0C-6AC2-447A-BFA7-48FC1AA6A7C0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{37614F0C-6AC2-447A-BFA7-48FC1AA6A7C0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{37614F0C-6AC2-447A-BFA7-48FC1AA6A7C0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E520BFDA-8118-409A-8B43-26F1F8813438}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E520BFDA-8118-409A-8B43-26F1F8813438}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E520BFDA-8118-409A-8B43-26F1F8813438}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E520BFDA-8118-409A-8B43-26F1F8813438}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
