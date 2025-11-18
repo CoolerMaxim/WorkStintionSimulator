@@ -8,6 +8,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.Cli", "T
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.DataQualityChecker", "TelemetryGenerator.DataQualityChecker\TelemetryGenerator.DataQualityChecker.csproj", "{E520BFDA-8118-409A-8B43-26F1F8813438}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AI.Training", "AI.Training\AI.Training.csproj", "{97F566D6-5D7D-4087-8C08-6500CB1C5B0A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +28,10 @@ Global
 		{E520BFDA-8118-409A-8B43-26F1F8813438}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E520BFDA-8118-409A-8B43-26F1F8813438}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E520BFDA-8118-409A-8B43-26F1F8813438}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97F566D6-5D7D-4087-8C08-6500CB1C5B0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97F566D6-5D7D-4087-8C08-6500CB1C5B0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97F566D6-5D7D-4087-8C08-6500CB1C5B0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97F566D6-5D7D-4087-8C08-6500CB1C5B0A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
