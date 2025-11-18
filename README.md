@@ -82,7 +82,29 @@ CLI підхоплює дефолтний словник аргументів, �
    ```
    Ця збірка охоплює `TelemetryGenerator.Core`, CLI, DataQualityChecker та `AI.Training` (перевірено, що вона проходить у Debug).
 
-2. **Згенерувати телеметрію** через `TelemetryGenerator.Cli` (можна змінювати аргументи, інакше спрацюють значення за замовчуванням):
+2. **PipelineRunner** (автоматизований сценарій): послідовно виконує `build → telemetry → check → train → simulate`.
+   - За замовчуванням (або з прапорцем `--all`) запускає всі етапи вказаним порядком; окремі прапорці (`--build`, `--telemetry`, `--check`, `--train`, `--simulate`) дозволяють вибрати підмножину.
+   - Базові аргументи (`--scenario`, `--duration`, `--step-minutes`, `--workstation-id`, `--output`) передаються у `TelemetryGenerator.Cli`, а шлях `--output` повторно використовується у `DataQualityChecker` та `AI.Training` — переконайтеся, що вказуєте його однаково, щоб усі етапи працювали з однією і тією ж CSV.
+   - Приклади:
+     ```bash
+     # Повний прохід усіх кроків
+     dotnet run --project PipelineRunner/PipelineRunner.csproj -- --all
+
+     # Генерація + якість + тренування з власними параметрами
+     dotnet run --project PipelineRunner/PipelineRunner.csproj -- \
+       --telemetry --check --train \
+       --scenario powerloss \
+       --duration 12h \
+       --step-minutes 10 \
+       --workstation-id WS-002 \
+       --output ./out/powerloss.csv \
+       --training-output ./out/training
+
+     # Тільки збірка та симуляція фізики
+     dotnet run --project PipelineRunner/PipelineRunner.csproj -- --build --simulate
+     ```
+
+3. **Згенерувати телеметрію** через `TelemetryGenerator.Cli` (можна змінювати аргументи, інакше спрацюють значення за замовчуванням):
    ```bash
    dotnet run --project TelemetryGenerator.Cli/TelemetryGenerator.Cli.csproj -- \
      --scenario normal-day \
@@ -95,7 +117,7 @@ CLI підхоплює дефолтний словник аргументів, �
      --output ./out/telemetry.csv
    ```
 
-3. **Перевірити CSV** за допомогою `TelemetryGenerator.DataQualityChecker`: після збірки DLL лежать у `TelemetryGenerator.DataQualityChecker/bin/Debug/net8.0/`.
+4. **Перевірити CSV** за допомогою `TelemetryGenerator.DataQualityChecker`: після збірки DLL лежать у `TelemetryGenerator.DataQualityChecker/bin/Debug/net8.0/`.
    Швидкий варіант (за наявності `dotnet-script`):
    ```bash
    dotnet script - <<'CSHARP'
@@ -110,7 +132,7 @@ CLI підхоплює дефолтний словник аргументів, �
    ```
    Якщо `dotnet-script` недоступний, додайте посилання на проєкти в будь-якому власному консольному застосунку та викличте `DataQualityChecker.Run()` аналогічно.
 
-4. **Навчити модель** з каталогу `AI.Training` (припускаючи наявність перевіреного CSV):
+5. **Навчити модель** з каталогу `AI.Training` (припускаючи наявність перевіреного CSV):
    ```bash
    dotnet script - <<'CSHARP'
    #r "TelemetryGenerator.Core/bin/Debug/net8.0/TelemetryGenerator.Core.dll"
@@ -124,7 +146,7 @@ CLI підхоплює дефолтний словник аргументів, �
    ```
    Аналогічний код можна вставити у власний консольний застосунок; у каталозі `training-output` з'являться `model.zip`, `metadata.json` та `TrainingReport.md`.
 
-5. **(Опційно) Переглянути фізичну симуляцію**: запустіть базовий `WorkstationJobSimulator` для демонстрації ітерацій подій.
+6. **(Опційно) Переглянути фізичну симуляцію**: запустіть базовий `WorkstationJobSimulator` для демонстрації ітерацій подій.
    ```bash
    dotnet run --project WorkstationJobSimulator.csproj
    ```
