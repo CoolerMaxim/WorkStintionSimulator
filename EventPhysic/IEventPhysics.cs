@@ -1,10 +1,10 @@
-﻿using WorkstationJobSimulator.Events;
-using WorkstationJobSimulator.Models.wsModels;
+using WorkstationJobSimulator.Events;
+using WorkstationJobSimulator.Models.Workstation;
 
 namespace WorkstationJobSimulator.EventPhysic;
 
 public interface IEventPhysics
 {
     Type EventType { get; }
-    void Apply(Workstation ws, SimulationEvent ev);
+    Task ApplyAsync(Workstation ws, SimulationEvent ev, CancellationToken cancellationToken);
 }
