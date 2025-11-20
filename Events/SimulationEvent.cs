@@ -1,5 +1,4 @@
-using System;
-using System.Collections.Generic;
+using WorkstationJobSimulator.Utilities;
 
 namespace WorkstationJobSimulator.Events;
 
@@ -23,7 +22,6 @@ public class AirAlarm : SimulationEvent
 [EventChance(0.35)]
 public class TurningOffTheLights : SimulationEvent
 {
-    private static readonly Random Random = new();
     private const double AirAlarmOverlapChance = 0.15;
 
     public TurningOffTheLights()
@@ -31,7 +29,7 @@ public class TurningOffTheLights : SimulationEvent
         EventName = "Відключення світла";
         Duration = RollDuration();
 
-        if (Random.NextDouble() < AirAlarmOverlapChance)
+        if (SimulationRandom.Instance.NextDouble() < AirAlarmOverlapChance)
         {
             SubEvents.Add(new AirAlarm());
         }
@@ -39,7 +37,7 @@ public class TurningOffTheLights : SimulationEvent
 
     private static TimeSpan RollDuration()
     {
-        int hours = Random.Next(3, 8);
+        int hours = SimulationRandom.Instance.Next(3, 8);
         return TimeSpan.FromHours(hours);
     }
 }

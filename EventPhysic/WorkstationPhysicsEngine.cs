@@ -1,18 +1,42 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Reflection;
 using WorkstationJobSimulator.Events;
-using WorkstationJobSimulator.Models.wsModels;
+using WorkstationJobSimulator.Logging;
+using WorkstationJobSimulator.Models.Workstation;
 
 namespace WorkstationJobSimulator.EventPhysic;
 
 public class WorkstationPhysicsEngine
 {
     private readonly Dictionary<Type, IEventPhysics> _handlers = new();
+    private readonly ISimulationLogger _logger;
+
+    public WorkstationPhysicsEngine(ISimulationLogger logger)
+    {
+        _logger = logger;
+    }
 
     public void Register(IEventPhysics physics)
     {
         _handlers[physics.EventType] = physics;
+    }
+
+    public void RegisterFromAssembly(Assembly assembly)
+    {
+        var physicsTypes = assembly
+            .GetTypes()
+            .Where(t => !t.IsAbstract && typeof(IEventPhysics).IsAssignableFrom(t))
+            .OrderBy(t => t.Name)
+            .ToArray();
+
+        foreach (var type in physicsTypes)
+        {
+            if (Activator.CreateInstance(type) is IEventPhysics physics)
+            {
+                Register(physics);
+            }
+        }
+
+        _logger.LogInformation(nameof(WorkstationPhysicsEngine), $"Зареєстровано {physicsTypes.Length} модулів фізики.");
     }
 
     public IReadOnlyCollection<Type> RegisteredPhysicsTypes => _handlers.Keys.ToArray();
@@ -30,22 +54,22 @@ public class WorkstationPhysicsEngine
         }
     }
 
-    public void ApplyPhysics(Workstation workstation, SimulationEvent simulationEvent)
+    public async Task ApplyPhysicsAsync(Workstation workstation, SimulationEvent simulationEvent, CancellationToken cancellationToken)
     {
         workstation.BeginEventProcessing(simulationEvent.EventName);
         workstation.Log($"[Engine] Починаємо обробку події \"{simulationEvent.EventName}\"");
 
-        ProcessEvent(workstation, simulationEvent);
+        await ProcessEventAsync(workstation, simulationEvent, cancellationToken);
 
         workstation.Log($"[Engine] Завершено обробку події \"{simulationEvent.EventName}\"");
         workstation.CompleteEventProcessing(simulationEvent.EventName);
     }
 
-    private void ProcessEvent(Workstation workstation, SimulationEvent simulationEvent)
+    private async Task ProcessEventAsync(Workstation workstation, SimulationEvent simulationEvent, CancellationToken cancellationToken)
     {
         if (_handlers.TryGetValue(simulationEvent.GetType(), out var handler))
         {
-            handler.Apply(workstation, simulationEvent);
+            await handler.ApplyAsync(workstation, simulationEvent, cancellationToken);
         }
         else
         {
@@ -60,7 +84,7 @@ public class WorkstationPhysicsEngine
         workstation.Log($"[Engine] Опрацьовуємо {simulationEvent.SubEvents.Count} підівент(и) для \"{simulationEvent.EventName}\"");
         foreach (var subEvent in simulationEvent.SubEvents)
         {
-            ProcessEvent(workstation, subEvent);
+            await ProcessEventAsync(workstation, subEvent, cancellationToken);
         }
     }
 }

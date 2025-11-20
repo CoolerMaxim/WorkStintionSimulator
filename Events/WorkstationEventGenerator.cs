@@ -1,38 +1,56 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
+using WorkstationJobSimulator.Logging;
 using WorkstationJobSimulator.Models;
+using WorkstationJobSimulator.Utilities;
 
 namespace WorkstationJobSimulator.Events;
 
 public class SimulationEventGenerator
 {
-    private readonly Random _random = new();
+    private static readonly IReadOnlyList<(double Weight, Type Type)> CachedEventTypes =
+        Assembly.GetExecutingAssembly()
+            .GetTypes()
+            .Where(t => !t.IsAbstract && typeof(SimulationEvent).IsAssignableFrom(t))
+            .Select(t => (Attr: t.GetCustomAttribute<EventChanceAttribute>(), Type: t))
+            .Where(x => x.Attr is not null)
+            .Select(x => (Weight: x.Attr!.Chance, Type: x.Type))
+            .ToArray();
 
+    private readonly ISimulationLogger _logger;
+    private readonly Random _random;
     private readonly List<(double Weight, Type Type)> _eventTypes = new();
     private readonly SimulationParameters _parameters;
 
-    public SimulationEventGenerator(SimulationParameters? parameters = null)
+    public SimulationEventGenerator(ISimulationLogger logger, SimulationParameters? parameters = null)
     {
+        _logger = logger;
         _parameters = parameters ?? SimulationParameters.Default;
 
-        var assembly = Assembly.GetExecutingAssembly();
+        SimulationRandom.Reset(_parameters.RandomSeed);
+        _random = SimulationRandom.Instance;
+
+        var configuredWeights = EventConfigurationLoader.LoadWeights(_parameters.EventWeightsConfigPath, _logger);
 
         _eventTypes.Clear();
         _eventTypes.AddRange(
-            assembly
-                .GetTypes()
-                .Where(t => !t.IsAbstract && typeof(SimulationEvent).IsAssignableFrom(t))
-                .Select(t => (Attr: t.GetCustomAttribute<EventChanceAttribute>(), Type: t))
-                .Where(x => x.Attr is not null)
-                .Select(x => (Weight: x.Attr!.Chance, Type: x.Type))
+            CachedEventTypes.Select(evt =>
+            {
+                var weight = configuredWeights.TryGetValue(evt.Type.Name, out var configured)
+                    ? configured
+                    : evt.Weight;
+                return (weight, evt.Type);
+            })
         );
 
         if (_eventTypes.Count == 0)
         {
             throw new InvalidOperationException(
                 "Не знайдено жодного класу події з EventChanceAttribute.");
+        }
+
+        if (_eventTypes.All(x => x.Weight <= 0))
+        {
+            throw new InvalidOperationException("Всі ваги подій некоректні (<= 0).");
         }
     }
 
@@ -41,7 +59,7 @@ public class SimulationEventGenerator
 
     public SimulationEvent Generate()
     {
-        Console.WriteLine("[LOG] Генеруємо нову подію...");
+        _logger.LogInformation(nameof(SimulationEventGenerator), "Генеруємо нову подію...");
 
         double totalWeight = _eventTypes.Sum(x => x.Weight);
         double roll = _random.NextDouble() * totalWeight;
@@ -53,14 +71,14 @@ public class SimulationEventGenerator
             if (roll <= cumulative)
             {
                 var ev = (SimulationEvent)Activator.CreateInstance(type)!;
-                Console.WriteLine($"[LOG] Згенерована подія: {ev.EventName}");
+                _logger.LogInformation(nameof(SimulationEventGenerator), $"Згенерована подія: {ev.EventName}");
                 return ev;
             }
         }
 
         var lastType = _eventTypes.Last().Type;
         var fallback = (SimulationEvent)Activator.CreateInstance(lastType)!;
-        Console.WriteLine($"[WARN] Використовуємо fallback подію: {fallback.EventName}");
+        _logger.LogWarning(nameof(SimulationEventGenerator), $"Використовуємо fallback подію: {fallback.EventName}");
         return fallback;
     }
 

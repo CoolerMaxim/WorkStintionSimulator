@@ -10,6 +10,9 @@
   <ItemGroup>
     <Compile Remove="TelemetryGenerator.Cli/**/*.cs" />
     <Compile Remove="TelemetryGenerator.Core/**/*.cs" />
+    <Compile Remove="TelemetryGenerator.DataQualityChecker/**/*.cs" />
+    <Compile Remove="AI.Training/**/*.cs" />
+    <Compile Remove="PipelineRunner/**/*.cs" />
   </ItemGroup>
 
 </Project>

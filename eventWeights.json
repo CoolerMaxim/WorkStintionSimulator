@@ -1,0 +1,4 @@
+[
+  { "eventType": "AirAlarm", "weight": 0.5 },
+  { "eventType": "TurningOffTheLights", "weight": 0.35 }
+]

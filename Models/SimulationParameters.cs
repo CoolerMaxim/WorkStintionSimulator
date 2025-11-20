@@ -18,7 +18,14 @@ public class SimulationParameters
     public TimeSpan StartupDelay { get; init; } = TimeSpan.FromSeconds(2);
 
     /// <summary>
-    /// Параметри за замовчуванням для типової локальної симуляції.
+    /// Шлях до конфігураційного файлу з вагами подій. Якщо null або файл не існує, використовуються значення з атрибутів.
     /// </summary>
+    public string? EventWeightsConfigPath { get; init; } = "eventWeights.json";
+
+    /// <summary>
+    /// Детермінований seed для генератора випадкових чисел. Якщо null – використовується значення за замовчуванням.
+    /// </summary>
+    public int? RandomSeed { get; init; }
+
     public static SimulationParameters Default => new();
 }
