@@ -35,7 +35,7 @@ public sealed class AmplifierModule : IModule
 
         state.AmplifierStatus = true;
 
-        var effectiveSpeakers = Math.Clamp(state.SpeakersEffective, 0, config.SpeakersConfigured);
+        var effectiveSpeakers = Math.Clamp(state.SpeakersEffective, 1, config.SpeakersConfigured);
         var nominalCurrent = effectiveSpeakers * config.SpeakerCurrentA;
         var noiseStd = nominalCurrent * _currentNoiseRelativeStd;
         var noise = nominalCurrent > 0 ? NextGaussian(rng, 0.0, noiseStd) : 0.0;

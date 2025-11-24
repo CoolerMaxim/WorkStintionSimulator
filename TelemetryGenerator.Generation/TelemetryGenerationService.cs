@@ -132,7 +132,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
 
         await using var writer = new StreamWriter(outputPath);
         await writer.WriteLineAsync(
-            "Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,Temperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus,AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType,NodeUptimeMinutes,TotalRuntimeHours,RestartCount,RecentRestarts,SoftwareHealth,FirmwareVersion,SoftwareVersion,HardwareRevision,FaultCounters,HealthState,IncidentLog,NodeOnline").ConfigureAwait(false);
+            "Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,InsideTemperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus,AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType,NodeUptimeMinutes,TotalRuntimeHours,RestartCount,RecentRestarts,SoftwareHealth,FirmwareVersion,SoftwareVersion,HardwareRevision,FaultCounters,HealthState,IncidentLog,NodeOnline").ConfigureAwait(false);
 
         foreach (var sample in samples)
         {
@@ -146,7 +146,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
                 sample.BatteryStatus ? "true" : "false",
                 sample.BatteryVoltage.ToString("F2", CultureInfo.InvariantCulture),
                 sample.CpuTemperature.ToString("F1", CultureInfo.InvariantCulture),
-                sample.Temperature.ToString(CultureInfo.InvariantCulture),
+                sample.InsideTemperature.ToString("F1", CultureInfo.InvariantCulture),
                 sample.DiskSpaceUse.ToString(CultureInfo.InvariantCulture),
                 sample.DoorOpenStatus ? "true" : "false",
                 sample.AmplifierStatus ? "true" : "false",
