@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using TelemetryGenerator.Core.Enums;
 
 namespace PipelineRunner.Options;
@@ -39,7 +41,7 @@ public sealed class PipelineOptions
 
     public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
 
-    public bool RunAll { get; set; } = true;
+    public bool RunAll { get; set; } = false;
 
     public bool Build { get; set; }
 
@@ -49,11 +51,20 @@ public sealed class PipelineOptions
 
     public bool Train { get; set; }
 
-    public bool ShouldRunBuild => RunAll || Build;
+    public List<string> Steps { get; set; } = new();
 
-    public bool ShouldRunTelemetry => RunAll || Telemetry;
+    public bool ShouldRunBuild => ShouldRunStep(Build, "build");
 
-    public bool ShouldRunCheck => RunAll || Check;
+    public bool ShouldRunTelemetry => ShouldRunStep(Telemetry, "telemetry");
 
-    public bool ShouldRunTrain => RunAll || Train;
+    public bool ShouldRunCheck => ShouldRunStep(Check, "check");
+
+    public bool ShouldRunTrain => ShouldRunStep(Train, "train");
+
+    private bool ShouldRunStep(bool explicitFlag, string stepName)
+    {
+        return RunAll
+            || explicitFlag
+            || Steps.Any(step => string.Equals(step, stepName, StringComparison.OrdinalIgnoreCase));
+    }
 }

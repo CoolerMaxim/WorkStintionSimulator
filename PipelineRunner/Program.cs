@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,6 +9,18 @@ using PipelineRunner.Steps;
 using TelemetryGenerator.Cli;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+builder.Configuration.AddCommandLine(args, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    { "--all", nameof(PipelineOptions.RunAll) },
+    { "--runAll", nameof(PipelineOptions.RunAll) },
+    { "--build", nameof(PipelineOptions.Build) },
+    { "--telemetry", nameof(PipelineOptions.Telemetry) },
+    { "--check", nameof(PipelineOptions.Check) },
+    { "--train", nameof(PipelineOptions.Train) },
+    { "--steps", nameof(PipelineOptions.Steps) },
+    { "--step", nameof(PipelineOptions.Steps) }
+});
 
 builder.Services
     .AddLogging()
