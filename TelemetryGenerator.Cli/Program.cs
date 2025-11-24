@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using TelemetryGenerator.Core;
 using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
@@ -174,7 +175,7 @@ static void WriteCsv(string outputPath, IEnumerable<TelemetryGenerator.Core.Tele
 
 static Dictionary<string, string> CreateDefaultArguments()
 {
-    return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    var defaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         ["--scenario"] = "normal-day",
         ["--difficulty"] = Difficulty.Normal.ToString(),
@@ -186,6 +187,21 @@ static Dictionary<string, string> CreateDefaultArguments()
         ["--node-profile"] = "randomized",
         ["--output"] = Path.Combine(Environment.CurrentDirectory, "telemetry.csv")
     };
+
+    var config = TelemetryCliConfig.Load(Path.Combine(AppContext.BaseDirectory, "appsettings.json"));
+    Apply(defaults, "--scenario", config.Scenario);
+    Apply(defaults, "--difficulty", config.Difficulty);
+    Apply(defaults, "--start", config.Start);
+    Apply(defaults, "--duration", config.Duration);
+    Apply(defaults, "--step-minutes", config.StepMinutes?.ToString(CultureInfo.InvariantCulture));
+    Apply(defaults, "--workstation-id", config.WorkstationId);
+    Apply(defaults, "--speakers-configured", config.SpeakersConfigured?.ToString(CultureInfo.InvariantCulture));
+    Apply(defaults, "--node-profile", config.NodeProfile);
+    Apply(defaults, "--output", string.IsNullOrWhiteSpace(config.Output)
+        ? null
+        : Path.GetFullPath(config.Output!, Environment.CurrentDirectory));
+
+    return defaults;
 }
 
 static Dictionary<string, string> ParseArguments(string[] args)
@@ -253,4 +269,47 @@ static string Quote(string value)
 {
     value ??= string.Empty;
     return $"\"{value.Replace("\"", "\"\"")}\"";
+}
+
+static void Apply(IDictionary<string, string> defaults, string key, string? value)
+{
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        defaults[key] = value;
+    }
+}
+
+internal sealed class TelemetryCliConfig
+{
+    public string? Scenario { get; set; }
+    public string? Difficulty { get; set; }
+    public string? Start { get; set; }
+    public string? Duration { get; set; }
+    public int? StepMinutes { get; set; }
+    public string? WorkstationId { get; set; }
+    public int? SpeakersConfigured { get; set; }
+    public string? NodeProfile { get; set; }
+    public string? Output { get; set; }
+
+    public static TelemetryCliConfig Load(string configPath)
+    {
+        if (!File.Exists(configPath))
+        {
+            return new TelemetryCliConfig();
+        }
+
+        try
+        {
+            var json = File.ReadAllText(configPath);
+            return JsonSerializer.Deserialize<TelemetryCliConfig>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new TelemetryCliConfig();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[config] Failed to parse appsettings.json: {ex.Message}");
+            return new TelemetryCliConfig();
+        }
+    }
 }

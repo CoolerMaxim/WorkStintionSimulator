@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using WorkstationJobSimulator.EventPhysic;
 using WorkstationJobSimulator.Events;
 using WorkstationJobSimulator.Logging;
@@ -8,7 +9,7 @@ using WorkstationJobSimulator.Simulation;
 
 Console.OutputEncoding = Encoding.UTF8;
 
-var parameters = SimulationParameters.Default;
+var parameters = LoadParameters();
 var logger = new ConsoleSimulationLogger();
 var generator = new SimulationEventGenerator(logger, parameters);
 var workstation = new Workstation(parameters.WorkstationName, logger);
@@ -40,6 +41,55 @@ Console.WriteLine("Симуляція завершена. Натисніть б�
 if (!Console.IsInputRedirected)
 {
     Console.ReadKey(true);
+}
+
+static SimulationParameters LoadParameters()
+{
+    var defaults = SimulationParameters.Default;
+    var configPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+
+    if (!File.Exists(configPath))
+    {
+        return defaults;
+    }
+
+    try
+    {
+        var json = File.ReadAllText(configPath);
+        var loaded = JsonSerializer.Deserialize<SimulationParameters>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        if (loaded is null)
+        {
+            return defaults;
+        }
+
+        return new SimulationParameters
+        {
+            WorkstationName = string.IsNullOrWhiteSpace(loaded.WorkstationName)
+                ? defaults.WorkstationName
+                : loaded.WorkstationName,
+            Iterations = loaded.Iterations > 0 ? loaded.Iterations : defaults.Iterations,
+            MinEventIntervalSeconds = loaded.MinEventIntervalSeconds > 0
+                ? loaded.MinEventIntervalSeconds
+                : defaults.MinEventIntervalSeconds,
+            MaxEventIntervalSeconds = loaded.MaxEventIntervalSeconds > 0
+                ? loaded.MaxEventIntervalSeconds
+                : defaults.MaxEventIntervalSeconds,
+            StartupDelay = loaded.StartupDelay > TimeSpan.Zero ? loaded.StartupDelay : defaults.StartupDelay,
+            EventWeightsConfigPath = string.IsNullOrWhiteSpace(loaded.EventWeightsConfigPath)
+                ? defaults.EventWeightsConfigPath
+                : loaded.EventWeightsConfigPath,
+            RandomSeed = loaded.RandomSeed ?? defaults.RandomSeed
+        };
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[config] Не вдалося прочитати appsettings.json: {ex.Message}");
+        return defaults;
+    }
 }
 
 static void ShowBanner()

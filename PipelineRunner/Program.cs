@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Text.Json;
 using AI.Training.Pipeline;
 using TelemetryGenerator.DataQualityChecker;
 using TelemetryGenerator.DataQualityChecker.Models;
@@ -160,37 +161,37 @@ static int RunProcess(string fileName, IEnumerable<string> arguments, string wor
 
 internal sealed class PipelineConfig
 {
-    private PipelineConfig(Dictionary<string, string> args)
+    private PipelineConfig(Dictionary<string, string> args, PipelineDefaults defaults)
     {
         WorkingDirectory = Directory.GetCurrentDirectory();
-        SolutionPath = GetPath(args, "--solution", Path.Combine(WorkingDirectory, "TelemetryGenerator.sln"));
-        TelemetryProjectPath = GetPath(args, "--telemetry-project", Path.Combine(WorkingDirectory, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj"));
-        WorkstationProjectPath = GetPath(args, "--simulate-project", Path.Combine(WorkingDirectory, "WorkstationJobSimulator.csproj"));
+        SolutionPath = GetPath(args, "--solution", defaults.SolutionPath ?? Path.Combine(WorkingDirectory, "TelemetryGenerator.sln"));
+        TelemetryProjectPath = GetPath(args, "--telemetry-project", defaults.TelemetryProjectPath ?? Path.Combine(WorkingDirectory, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj"));
+        WorkstationProjectPath = GetPath(args, "--simulate-project", defaults.WorkstationProjectPath ?? Path.Combine(WorkingDirectory, "WorkstationJobSimulator.csproj"));
 
-        Scenario = args.GetValueOrDefault("--scenario", "normal-day");
-        Duration = args.GetValueOrDefault("--duration", "24h");
-        StepMinutes = ParseInt(args.GetValueOrDefault("--step-minutes"), 5);
-        WorkstationId = args.GetValueOrDefault("--workstation-id", "WS-001");
-        Difficulty = args.GetValueOrDefault("--difficulty", "Normal");
-        Start = args.GetValueOrDefault("--start", DateTime.Now.ToString("O", CultureInfo.InvariantCulture));
-        SpeakersConfigured = ParseInt(args.GetValueOrDefault("--speakers-configured"), 4);
-        NodeProfile = args.GetValueOrDefault("--node-profile", "randomized");
+        Scenario = args.GetValueOrDefault("--scenario", defaults.Scenario ?? "normal-day");
+        Duration = args.GetValueOrDefault("--duration", defaults.Duration ?? "24h");
+        StepMinutes = ParseInt(args.GetValueOrDefault("--step-minutes"), defaults.StepMinutes ?? 5);
+        WorkstationId = args.GetValueOrDefault("--workstation-id", defaults.WorkstationId ?? "WS-001");
+        Difficulty = args.GetValueOrDefault("--difficulty", defaults.Difficulty ?? "Normal");
+        Start = args.GetValueOrDefault("--start", defaults.Start ?? DateTime.Now.ToString("O", CultureInfo.InvariantCulture));
+        SpeakersConfigured = ParseInt(args.GetValueOrDefault("--speakers-configured"), defaults.SpeakersConfigured ?? 4);
+        NodeProfile = args.GetValueOrDefault("--node-profile", defaults.NodeProfile ?? "randomized");
 
-        OutputPath = GetPath(args, "--output", Path.Combine(WorkingDirectory, "out", "telemetry.csv"));
+        OutputPath = GetPath(args, "--output", defaults.OutputPath ?? Path.Combine(WorkingDirectory, "out", "telemetry.csv"));
         var outputDirectory = Path.GetDirectoryName(OutputPath) ?? WorkingDirectory;
-        DatasetName = args.GetValueOrDefault("--dataset-name", Path.GetFileNameWithoutExtension(OutputPath));
-        QualityMarkdownPath = GetPath(args, "--quality-report", Path.Combine(outputDirectory, "DataQualityReport.md"));
-        QualityJsonPath = GetPath(args, "--quality-json", Path.Combine(outputDirectory, "DataQualityReport.json"));
-        TrainingOutput = GetPath(args, "--training-output", Path.Combine(outputDirectory, "training-output"));
+        DatasetName = args.GetValueOrDefault("--dataset-name", defaults.DatasetName ?? Path.GetFileNameWithoutExtension(OutputPath));
+        QualityMarkdownPath = GetPath(args, "--quality-report", defaults.QualityMarkdownPath ?? Path.Combine(outputDirectory, "DataQualityReport.md"));
+        QualityJsonPath = GetPath(args, "--quality-json", defaults.QualityJsonPath ?? Path.Combine(outputDirectory, "DataQualityReport.json"));
+        TrainingOutput = GetPath(args, "--training-output", defaults.TrainingOutput ?? Path.Combine(outputDirectory, "training-output"));
 
         var stepFlags = new[] { "--build", "--telemetry", "--check", "--train", "--simulate" };
         var hasSpecificSteps = args.Keys.Any(k => stepFlags.Contains(k, StringComparer.OrdinalIgnoreCase));
-        RunAll = args.ContainsKey("--all") || !hasSpecificSteps;
-        Build = args.ContainsKey("--build");
-        Telemetry = args.ContainsKey("--telemetry");
-        Check = args.ContainsKey("--check");
-        Train = args.ContainsKey("--train");
-        Simulate = args.ContainsKey("--simulate");
+        RunAll = args.ContainsKey("--all") || (!hasSpecificSteps && defaults.RunAll);
+        Build = args.ContainsKey("--build") || defaults.Build;
+        Telemetry = args.ContainsKey("--telemetry") || defaults.Telemetry;
+        Check = args.ContainsKey("--check") || defaults.Check;
+        Train = args.ContainsKey("--train") || defaults.Train;
+        Simulate = args.ContainsKey("--simulate") || defaults.Simulate;
     }
 
     public bool ShouldRunBuild => RunAll || Build;
@@ -225,6 +226,14 @@ internal sealed class PipelineConfig
 
     public static PipelineConfig Parse(string[] args)
     {
+        var map = ParseArgs(args);
+        var defaults = PipelineDefaults.Load(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"));
+
+        return new PipelineConfig(map, defaults);
+    }
+
+    private static Dictionary<string, string> ParseArgs(string[] args)
+    {
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         for (var i = 0; i < args.Length; i++)
         {
@@ -245,7 +254,7 @@ internal sealed class PipelineConfig
             }
         }
 
-        return new PipelineConfig(map);
+        return map;
     }
 
     private static string GetPath(Dictionary<string, string> args, string key, string defaultValue)
@@ -261,3 +270,52 @@ internal sealed class PipelineConfig
 }
 
 internal sealed record PipelineStep(string Name, bool Enabled, Func<int> Action);
+
+internal sealed class PipelineDefaults
+{
+    public string? Scenario { get; set; }
+    public string? Duration { get; set; }
+    public int? StepMinutes { get; set; }
+    public string? WorkstationId { get; set; }
+    public string? Difficulty { get; set; }
+    public string? Start { get; set; }
+    public int? SpeakersConfigured { get; set; }
+    public string? NodeProfile { get; set; }
+    public string? OutputPath { get; set; }
+    public string? DatasetName { get; set; }
+    public string? QualityMarkdownPath { get; set; }
+    public string? QualityJsonPath { get; set; }
+    public string? TrainingOutput { get; set; }
+    public string? SolutionPath { get; set; }
+    public string? TelemetryProjectPath { get; set; }
+    public string? WorkstationProjectPath { get; set; }
+
+    public bool RunAll { get; set; } = true;
+    public bool Build { get; set; }
+    public bool Telemetry { get; set; }
+    public bool Check { get; set; }
+    public bool Train { get; set; }
+    public bool Simulate { get; set; }
+
+    public static PipelineDefaults Load(string configPath)
+    {
+        if (!File.Exists(configPath))
+        {
+            return new PipelineDefaults();
+        }
+
+        try
+        {
+            var json = File.ReadAllText(configPath);
+            return JsonSerializer.Deserialize<PipelineDefaults>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new PipelineDefaults();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[config] Failed to parse appsettings.json: {ex.Message}");
+            return new PipelineDefaults();
+        }
+    }
+}

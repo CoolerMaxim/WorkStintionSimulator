@@ -9,4 +9,10 @@
     <ProjectReference Include="..\TelemetryGenerator.DataQualityChecker\TelemetryGenerator.DataQualityChecker.csproj" />
     <ProjectReference Include="..\AI.Training\AI.Training.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
