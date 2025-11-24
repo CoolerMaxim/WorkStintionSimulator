@@ -79,6 +79,6 @@ public class ModelInput
 
 public class ModelOutput
 {
-    public string PredictedLabel { get; set; } = string.Empty;
+    public uint PredictedLabel { get; set; }
     public float[]? Score { get; set; }
 }
