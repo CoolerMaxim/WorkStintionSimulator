@@ -8,6 +8,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TelemetryGenerator.DataQualityChecker\TelemetryGenerator.DataQualityChecker.csproj" />
     <ProjectReference Include="..\AI.Training\AI.Training.csproj" />
+    <ProjectReference Include="..\TelemetryGenerator.Generation\TelemetryGenerator.Generation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

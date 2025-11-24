@@ -7,6 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\TelemetryGenerator.Core\TelemetryGenerator.Core.csproj" />
+    <ProjectReference Include="..\TelemetryGenerator.Generation\TelemetryGenerator.Generation.csproj" />
   </ItemGroup>
 
   <ItemGroup>
