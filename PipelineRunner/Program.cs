@@ -10,7 +10,8 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddLogging()
-    .AddTelemetryGeneration();
+    .AddTelemetryGeneration()
+    .AddTransient<TelemetryGenerator.Cli.TelemetryGenerationRunner>();
 
 builder.Services
     .AddOptions<PipelineOptions>()
