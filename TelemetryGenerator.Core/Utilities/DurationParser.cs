@@ -1,11 +1,17 @@
 using System.Globalization;
 
-namespace PipelineRunner.Options;
+namespace TelemetryGenerator.Core.Utilities;
 
-internal static class DurationParser
+public static class DurationParser
 {
-    public static bool TryParse(string value, out TimeSpan duration)
+    public static bool TryParse(string? value, out TimeSpan duration)
     {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            duration = TimeSpan.Zero;
+            return false;
+        }
+
         value = value.Trim();
         if (value.EndsWith("d", StringComparison.OrdinalIgnoreCase) &&
             double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var days))
