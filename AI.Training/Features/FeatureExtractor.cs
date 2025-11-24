@@ -28,7 +28,7 @@ public class FeatureExtractor
             }
 
             var restartRate = CalculateRestartRate(queue, entry.Timestamp);
-            var label = ParseHealthState(record.HealthState);
+            var label = ResolveLabel(record);
 
             results.Add(new FeatureVector(
                 entry.Timestamp,
@@ -58,6 +58,16 @@ public class FeatureExtractor
         var restartRate = queue.Count / 24f;
         queue.Enqueue(currentTimestamp);
         return (float)restartRate;
+    }
+
+    public static HealthState ResolveLabel(TelemetryRecord record)
+    {
+        if (record.IsAnomaly)
+        {
+            return HealthState.Failed;
+        }
+
+        return ParseHealthState(record.HealthState);
     }
 
     public static HealthState ParseHealthState(string? value)
