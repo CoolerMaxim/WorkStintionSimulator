@@ -1,0 +1,10 @@
+{
+  "dataQualityChecker": {
+    "enableStructureAnalyzer": true,
+    "enableTimeGridAnalyzer": true,
+    "enablePhysicsAnalyzer": true,
+    "enableAnomalyAnalyzer": true,
+    "enableScenarioAnalyzer": true,
+    "enableMlFitnessAnalyzer": true
+  }
+}

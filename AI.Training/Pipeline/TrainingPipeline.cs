@@ -1,3 +1,4 @@
+using AI.Training.Configuration;
 using AI.Training.Baseline;
 using AI.Training.Data;
 using AI.Training.Evaluation;
@@ -13,6 +14,7 @@ namespace AI.Training.Pipeline;
 
 public class TrainingPipeline
 {
+    private readonly TrainingPipelineOptions _options;
     private readonly MLContext _mlContext;
     private readonly DatasetLoader _loader;
     private readonly FeatureExtractor _extractor;
@@ -22,9 +24,10 @@ public class TrainingPipeline
     private readonly ModelExporter _exporter;
     private readonly TrainingReportBuilder _reportBuilder;
 
-    public TrainingPipeline(int seed = 7)
+    public TrainingPipeline(TrainingPipelineOptions? options = null)
     {
-        _mlContext = new MLContext(seed);
+        _options = options ?? TrainingPipelineOptions.LoadDefault();
+        _mlContext = new MLContext(_options.Seed);
         _loader = new DatasetLoader(_mlContext);
         _extractor = new FeatureExtractor();
         _labels = new LabelProcessor();
@@ -33,7 +36,7 @@ public class TrainingPipeline
         _evaluator = new ModelEvaluator(_mlContext, baseline);
         _exporter = new ModelExporter(_mlContext);
         _reportBuilder = new TrainingReportBuilder();
-        Seed = seed;
+        Seed = _options.Seed;
     }
 
     public int Seed { get; }
@@ -41,7 +44,7 @@ public class TrainingPipeline
     public (EvaluationReport Report, string ModelPath, string MetadataPath) Run(string csvPath, string outputDirectory)
     {
         var records = _loader.Load(csvPath);
-        var (trainRecords, testRecords) = _loader.TemporalSplit(records);
+        var (trainRecords, testRecords) = _loader.TemporalSplit(records, _options.TrainFraction);
 
         var trainFeatures = _extractor.Extract(trainRecords);
         var testFeatures = _extractor.Extract(testRecords);
@@ -49,8 +52,12 @@ public class TrainingPipeline
         var trainInputs = _labels.ToModelInputs(trainFeatures);
         var testInputs = _labels.ToModelInputs(testFeatures);
 
-        var trainingResult = _trainer.Train(trainInputs, testInputs.Take((int)(testInputs.Count * 0.5)));
-        var report = _evaluator.Evaluate(trainingResult.Model, testInputs, testFeatures);
+        var evaluationCount = Math.Max(1, (int)(testInputs.Count * _options.EvaluationFraction));
+        var evaluationInputs = testInputs.Take(evaluationCount).ToList();
+        var evaluationFeatures = testFeatures.Take(evaluationCount).ToList();
+
+        var trainingResult = _trainer.Train(trainInputs, evaluationInputs);
+        var report = _evaluator.Evaluate(trainingResult.Model, evaluationInputs, evaluationFeatures);
 
         var modelPath = Path.Combine(outputDirectory, "artifacts", "model.zip");
         _exporter.SaveModel(trainingResult.Model, _mlContext.Data.LoadFromEnumerable(trainInputs).Schema, modelPath);

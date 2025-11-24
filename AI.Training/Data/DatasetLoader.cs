@@ -45,13 +45,16 @@ public class DatasetLoader
         return records;
     }
 
-    public (IReadOnlyList<TelemetryRecord> Train, IReadOnlyList<TelemetryRecord> Test) TemporalSplit(IEnumerable<TelemetryRecord> records)
+    public (IReadOnlyList<TelemetryRecord> Train, IReadOnlyList<TelemetryRecord> Test) TemporalSplit(
+        IEnumerable<TelemetryRecord> records,
+        double trainFraction = 0.7)
     {
         var ordered = records
             .OrderBy(r => DateTime.Parse(r.Timestamp, null, System.Globalization.DateTimeStyles.AdjustToUniversal))
             .ToList();
 
-        var cutoff = (int)(ordered.Count * 0.7);
+        trainFraction = Math.Clamp(trainFraction, 0.1, 0.9);
+        var cutoff = (int)(ordered.Count * trainFraction);
         var train = ordered.Take(cutoff).ToList();
         var test = ordered.Skip(cutoff).ToList();
         return (train, test);
