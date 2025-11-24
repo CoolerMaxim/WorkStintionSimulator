@@ -2,17 +2,23 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 using AI.Training.Pipeline;
+using Microsoft.Extensions.DependencyInjection;
+using TelemetryGenerator.Core.Enums;
+using TelemetryGenerator.Core.Services;
 using TelemetryGenerator.DataQualityChecker;
 using TelemetryGenerator.DataQualityChecker.Models;
+using TelemetryGenerator.Generation;
 
 var config = PipelineConfig.Parse(args);
+using var serviceProvider = CreateServiceProvider();
+var telemetryService = serviceProvider.GetRequiredService<ITelemetryGenerationService>();
 
 var steps = new List<PipelineStep>
 {
-    new("build", config.ShouldRunBuild, () => RunBuild(config)),
-    new("telemetry", config.ShouldRunTelemetry, () => RunTelemetry(config)),
-    new("check", config.ShouldRunCheck, () => RunQualityCheck(config)),
-    new("train", config.ShouldRunTrain, () => RunTraining(config))
+    new("build", config.ShouldRunBuild, () => Task.FromResult(RunBuild(config))),
+    new("telemetry", config.ShouldRunTelemetry, () => RunTelemetryAsync(config, telemetryService)),
+    new("check", config.ShouldRunCheck, () => Task.FromResult(RunQualityCheck(config))),
+    new("train", config.ShouldRunTrain, () => Task.FromResult(RunTraining(config)))
 };
 
 foreach (var step in steps)
@@ -24,7 +30,7 @@ foreach (var step in steps)
     }
 
     Console.WriteLine($"\n=== {step.Name.ToUpperInvariant()} ===");
-    var exit = step.Action();
+    var exit = await step.Action();
     Console.WriteLine($"[{step.Name}] completed with exit code {exit}\n");
 
     if (exit != 0)
@@ -41,39 +47,53 @@ static int RunBuild(PipelineConfig config)
     return RunProcess("dotnet", ["build", config.SolutionPath], config.WorkingDirectory);
 }
 
-static int RunTelemetry(PipelineConfig config)
+static async Task<int> RunTelemetryAsync(PipelineConfig config, ITelemetryGenerationService telemetryService)
 {
-    var telemetryArgs = new List<string>
-    {
-        "run",
-        "--project",
-        config.TelemetryProjectPath,
-        "--",
-        "--scenario",
-        config.Scenario,
-        "--duration",
-        config.Duration,
-        "--step-minutes",
-        config.StepMinutes.ToString(CultureInfo.InvariantCulture),
-        "--workstation-id",
-        config.WorkstationId,
-        "--output",
-        config.OutputPath,
-        "--difficulty",
-        config.Difficulty,
-        "--start",
-        config.Start,
-        "--speakers-configured",
-        config.SpeakersConfigured.ToString(CultureInfo.InvariantCulture),
-        "--node-profile",
-        config.NodeProfile
-    };
-
     Console.WriteLine("Generating telemetry with:");
     Console.WriteLine($"  scenario={config.Scenario}, duration={config.Duration}, stepMinutes={config.StepMinutes}");
     Console.WriteLine($"  workstation={config.WorkstationId}, output={config.OutputPath}");
 
-    return RunProcess("dotnet", telemetryArgs, config.WorkingDirectory);
+    if (!Enum.TryParse<Difficulty>(config.Difficulty, true, out var difficulty))
+    {
+        Console.Error.WriteLine($"[telemetry] invalid difficulty: {config.Difficulty}");
+        return 1;
+    }
+
+    if (!DateTime.TryParse(config.Start, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var start))
+    {
+        Console.Error.WriteLine($"[telemetry] invalid start timestamp: {config.Start}");
+        return 1;
+    }
+
+    if (!TryParseDuration(config.Duration, out var duration))
+    {
+        Console.Error.WriteLine($"[telemetry] invalid duration: {config.Duration}");
+        return 1;
+    }
+
+    var options = new TelemetryGenerationOptions
+    {
+        Scenario = config.Scenario,
+        Difficulty = difficulty,
+        Start = start,
+        Duration = duration,
+        Step = TimeSpan.FromMinutes(config.StepMinutes),
+        WorkstationId = config.WorkstationId,
+        SpeakersConfigured = config.SpeakersConfigured,
+        NodeProfile = config.NodeProfile,
+        OutputPath = config.OutputPath
+    };
+
+    try
+    {
+        await telemetryService.GenerateAsync(options);
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"[telemetry] generation failed: {ex.Message}");
+        return 1;
+    }
 }
 
 static int RunQualityCheck(PipelineConfig config)
@@ -126,6 +146,38 @@ static int RunTraining(PipelineConfig config)
         Console.Error.WriteLine($"[train] failed: {ex.Message}");
         return 1;
     }
+}
+
+static ServiceProvider CreateServiceProvider()
+{
+    return new ServiceCollection()
+        .AddTelemetryGeneration()
+        .BuildServiceProvider();
+}
+
+static bool TryParseDuration(string value, out TimeSpan duration)
+{
+    value = value.Trim();
+    if (value.EndsWith("d", StringComparison.OrdinalIgnoreCase) && double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var days))
+    {
+        duration = TimeSpan.FromDays(days);
+        return true;
+    }
+
+    if (value.EndsWith("h", StringComparison.OrdinalIgnoreCase) && double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var hours))
+    {
+        duration = TimeSpan.FromHours(hours);
+        return true;
+    }
+
+    if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var plainHours))
+    {
+        duration = TimeSpan.FromHours(plainHours);
+        return true;
+    }
+
+    duration = TimeSpan.Zero;
+    return false;
 }
 
 static int RunProcess(string fileName, IEnumerable<string> arguments, string workingDirectory)
@@ -257,7 +309,7 @@ internal sealed class PipelineConfig
     }
 }
 
-internal sealed record PipelineStep(string Name, bool Enabled, Func<int> Action);
+internal sealed record PipelineStep(string Name, bool Enabled, Func<Task<int>> Action);
 
 internal sealed class PipelineDefaults
 {

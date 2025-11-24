@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AI.Training", "AI.Training\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PipelineRunner", "PipelineRunner\PipelineRunner.csproj", "{D4F3C925-5E07-4DB8-B027-1AD4709019BD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelemetryGenerator.Generation", "TelemetryGenerator.Generation\TelemetryGenerator.Generation.csproj", "{638058B8-A535-4709-AAD2-B47124CC2EDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{D4F3C925-5E07-4DB8-B027-1AD4709019BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D4F3C925-5E07-4DB8-B027-1AD4709019BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D4F3C925-5E07-4DB8-B027-1AD4709019BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{638058B8-A535-4709-AAD2-B47124CC2EDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{638058B8-A535-4709-AAD2-B47124CC2EDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{638058B8-A535-4709-AAD2-B47124CC2EDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{638058B8-A535-4709-AAD2-B47124CC2EDC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
