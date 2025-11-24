@@ -17,6 +17,7 @@ public class TrainingPipeline
     private readonly TrainingPipelineOptions _options;
     private readonly MLContext _mlContext;
     private readonly DatasetLoader _loader;
+    private readonly TrainingDataValidator _validator;
     private readonly FeatureExtractor _extractor;
     private readonly LabelProcessor _labels;
     private readonly ModelTrainer _trainer;
@@ -29,6 +30,7 @@ public class TrainingPipeline
         _options = options ?? TrainingPipelineOptions.LoadDefault();
         _mlContext = new MLContext(_options.Seed);
         _loader = new DatasetLoader(_mlContext);
+        _validator = new TrainingDataValidator();
         _extractor = new FeatureExtractor();
         _labels = new LabelProcessor();
         _trainer = new ModelTrainer(_mlContext);
@@ -44,6 +46,7 @@ public class TrainingPipeline
     public (EvaluationReport Report, string ModelPath, string MetadataPath) Run(string csvPath, string outputDirectory)
     {
         var records = _loader.Load(csvPath);
+        _validator.Validate(records);
         var (trainRecords, testRecords) = _loader.TemporalSplit(records, _options.TrainFraction);
 
         var trainFeatures = _extractor.Extract(trainRecords).ToList();
