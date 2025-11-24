@@ -1,29 +1,29 @@
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
+using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
 
 namespace PipelineRunner.Options;
 
 public sealed class PipelineOptions
 {
-    public string Scenario { get; set; } = "normal-day";
+    public string Scenario { get; set; } = TelemetryDefaults.Scenario;
 
-    public string Duration { get; set; } = "24h";
+    public string Duration { get; set; } = TelemetryDefaults.DurationText;
 
-    public int StepMinutes { get; set; } = 5;
+    public int StepMinutes { get; set; } = TelemetryDefaults.StepMinutes;
 
-    public string WorkstationId { get; set; } = "WS-001";
+    public string WorkstationId { get; set; } = TelemetryDefaults.WorkstationId;
 
-    public string Difficulty { get; set; } = global::TelemetryGenerator.Core.Enums.Difficulty.Normal.ToString();
+    public string Difficulty { get; set; } = TelemetryDefaults.DifficultyName;
 
-    public string Start { get; set; } = DateTime.Now.ToString("O", CultureInfo.InvariantCulture);
+    public string Start { get; set; } = TelemetryDefaults.StartIsoString;
 
-    public int SpeakersConfigured { get; set; } = 4;
+    public int SpeakersConfigured { get; set; } = TelemetryDefaults.SpeakersConfigured;
 
-    public string NodeProfile { get; set; } = "randomized";
+    public string NodeProfile { get; set; } = TelemetryDefaults.NodeProfile;
 
-    public string OutputPath { get; set; } = Path.Combine(Environment.CurrentDirectory, "out", "telemetry.csv");
+    public string OutputPath { get; set; } = TelemetryDefaults.BuildOutputPath(Path.Combine(Environment.CurrentDirectory, "out"));
 
     public int? Seed { get; set; }
 

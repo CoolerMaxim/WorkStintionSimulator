@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelemetryGenerator.Core.Enums;
+using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Utilities;
 using TelemetryGenerator.Core.Services;
 using TelemetryGenerator.Generation;
@@ -48,26 +49,30 @@ public sealed class TelemetryGenerationRunner
     {
         if (!Enum.TryParse<Difficulty>(request.Difficulty, true, out var difficulty))
         {
-            difficulty = Difficulty.Normal;
+            difficulty = TelemetryDefaults.DefaultDifficulty;
         }
 
         var start = ParseStart(request.Start);
         if (!DurationParser.TryParse(request.Duration, out var duration))
         {
-            duration = TimeSpan.FromHours(24);
+            duration = TelemetryDefaults.Duration;
         }
 
-        var nodeProfile = string.IsNullOrWhiteSpace(request.NodeProfile) ? "randomized" : request.NodeProfile.Trim();
+        var nodeProfile = string.IsNullOrWhiteSpace(request.NodeProfile)
+            ? TelemetryDefaults.NodeProfile
+            : request.NodeProfile.Trim();
+
+        var stepMinutes = request.StepMinutes <= 0 ? TelemetryDefaults.StepMinutes : request.StepMinutes;
 
         return new TelemetryGenerationOptions
         {
-            Scenario = string.IsNullOrWhiteSpace(request.Scenario) ? "normal-day" : request.Scenario.Trim(),
+            Scenario = string.IsNullOrWhiteSpace(request.Scenario) ? TelemetryDefaults.Scenario : request.Scenario.Trim(),
             Difficulty = difficulty,
             Start = start,
             Duration = duration,
-            Step = TimeSpan.FromMinutes(Math.Max(1, request.StepMinutes)),
-            WorkstationId = string.IsNullOrWhiteSpace(request.WorkstationId) ? "WS-001" : request.WorkstationId.Trim(),
-            SpeakersConfigured = Math.Max(1, request.SpeakersConfigured),
+            Step = TimeSpan.FromMinutes(Math.Max(1, stepMinutes)),
+            WorkstationId = string.IsNullOrWhiteSpace(request.WorkstationId) ? TelemetryDefaults.WorkstationId : request.WorkstationId.Trim(),
+            SpeakersConfigured = Math.Max(1, request.SpeakersConfigured <= 0 ? TelemetryDefaults.SpeakersConfigured : request.SpeakersConfigured),
             NodeProfile = nodeProfile,
             OutputPath = ResolveOutputPath(request.OutputPath),
             Seed = request.Seed
@@ -114,15 +119,16 @@ public sealed class TelemetryGenerationRunner
             return parsed;
         }
 
-        return DateTime.Now;
+        return TelemetryDefaults.Start;
     }
 
     private static string ResolveOutputPath(string output)
     {
-        var configured = string.IsNullOrWhiteSpace(output)
-            ? Path.Combine(Environment.CurrentDirectory, "telemetry.csv")
-            : output;
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return TelemetryDefaults.BuildOutputPath();
+        }
 
-        return Path.GetFullPath(configured, Environment.CurrentDirectory);
+        return Path.GetFullPath(output, Environment.CurrentDirectory);
     }
 }
