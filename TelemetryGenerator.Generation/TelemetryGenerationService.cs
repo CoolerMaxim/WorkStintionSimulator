@@ -13,31 +13,46 @@ namespace TelemetryGenerator.Generation;
 
 public sealed class TelemetryGenerationService : ITelemetryGenerationService
 {
+    private readonly IRandomFactory _randomFactory;
+    private readonly IAnomalyInjectorFactory _anomalyInjectorFactory;
+    private readonly IBatteryModelFactory _batteryModelFactory;
+    private readonly ITemperatureModelFactory _temperatureModelFactory;
+    private readonly IMaintenanceSchedulerFactory _maintenanceSchedulerFactory;
+    private readonly IModuleProvider _moduleProvider;
+
+    public TelemetryGenerationService(
+        IRandomFactory randomFactory,
+        IAnomalyInjectorFactory anomalyInjectorFactory,
+        IBatteryModelFactory batteryModelFactory,
+        ITemperatureModelFactory temperatureModelFactory,
+        IMaintenanceSchedulerFactory maintenanceSchedulerFactory,
+        IModuleProvider moduleProvider)
+    {
+        _randomFactory = randomFactory;
+        _anomalyInjectorFactory = anomalyInjectorFactory;
+        _batteryModelFactory = batteryModelFactory;
+        _temperatureModelFactory = temperatureModelFactory;
+        _maintenanceSchedulerFactory = maintenanceSchedulerFactory;
+        _moduleProvider = moduleProvider;
+    }
+
     public async Task GenerateAsync(TelemetryGenerationOptions options, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(options);
 
         Validate(options);
 
-        var rnd = options.Seed.HasValue ? new Random(options.Seed.Value) : new Random();
+        var rnd = _randomFactory.Create(options.Seed);
         var difficulty = options.Difficulty;
         var nodeProfile = options.NodeProfile ?? "randomized";
         var config = CreateNodeConfig(nodeProfile, options.WorkstationId, options.SpeakersConfigured, difficulty, rnd);
 
-        var anomalyConfiguration = AnomalyConfigurationFactory.CreateDefault();
-        var anomalyInjector = new AnomalyInjector(anomalyConfiguration);
-        var maintenanceScheduler = new MaintenanceScheduler();
-        var batteryModel = new BatteryModel();
-        var temperatureModel = new TemperatureModel();
+        var anomalyInjector = _anomalyInjectorFactory.Create();
+        var maintenanceScheduler = _maintenanceSchedulerFactory.Create();
+        var batteryModel = _batteryModelFactory.Create();
+        var temperatureModel = _temperatureModelFactory.Create();
         var profile = DifficultyProfiles.Create(difficulty);
-        var modules = new List<IModule>
-        {
-            new PowerSupplyModule(),
-            new MicroControllerModule(),
-            new AmplifierModule(),
-            new EnvironmentModule(temperatureModel),
-            new NetworkControllerModule(new NetworkModel(), profile)
-        };
+        var modules = _moduleProvider.CreateModules(profile, temperatureModel);
 
         var generator = new TelemetryGenerator.Core.TelemetryGenerator(
             modules,
@@ -179,6 +194,12 @@ public static class TelemetryGenerationServiceCollectionExtensions
 {
     public static IServiceCollection AddTelemetryGeneration(this IServiceCollection services)
     {
+        services.AddSingleton<IRandomFactory, DefaultRandomFactory>();
+        services.AddSingleton<IAnomalyInjectorFactory, DefaultAnomalyInjectorFactory>();
+        services.AddSingleton<IBatteryModelFactory, DefaultBatteryModelFactory>();
+        services.AddSingleton<ITemperatureModelFactory, DefaultTemperatureModelFactory>();
+        services.AddSingleton<IMaintenanceSchedulerFactory, DefaultMaintenanceSchedulerFactory>();
+        services.AddSingleton<IModuleProvider, DefaultModuleProvider>();
         services.AddSingleton<ITelemetryGenerationService, TelemetryGenerationService>();
         return services;
     }
