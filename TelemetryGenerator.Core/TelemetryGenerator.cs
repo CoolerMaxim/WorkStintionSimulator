@@ -144,7 +144,7 @@ public sealed class TelemetryGenerator
             state.BatteryStatusOk,
             Math.Round(state.BatteryVoltage, 2),
             Math.Round(state.CpuTemperature, 1),
-            (int)Math.Round(state.InsideTemperature),
+            Math.Round(state.InsideTemperature, 1),
             state.DiskSpaceUsePercent,
             state.DoorOpen,
             state.AmplifierStatus,

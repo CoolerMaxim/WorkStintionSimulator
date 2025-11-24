@@ -11,7 +11,7 @@ public sealed record TelemetrySample(
     bool BatteryStatus,
     double BatteryVoltage,
     double CpuTemperature,
-    int Temperature,
+    double InsideTemperature,
     int DiskSpaceUse,
     bool DoorOpenStatus,
     bool AmplifierStatus,
