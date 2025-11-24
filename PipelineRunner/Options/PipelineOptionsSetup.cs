@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using Microsoft.Extensions.Options;
 
 namespace PipelineRunner.Options;
@@ -24,6 +25,11 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         options.TelemetryProjectPath = Normalize(options.TelemetryProjectPath, options.WorkingDirectory);
 
         options.DatasetName ??= Path.GetFileNameWithoutExtension(options.OutputPath);
+
+        options.Steps = options.Steps
+            .SelectMany(step => step.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static string Normalize(string path, string basePath)

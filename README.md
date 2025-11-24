@@ -40,7 +40,11 @@
    Запит `POST /generate` приймає JSON з полями `TelemetryGenerationRequest`, виконує `RunAsync` та коректно обробляє `CancellationToken` без консольного парсера.
 3. **Запуск пайплайну** (послідовно build → telemetry → check → train)
    ```bash
-   dotnet run --project PipelineRunner/PipelineRunner.csproj -- --all
+   # явний вибір кроків через CLI (RunAll вимкнено за замовчуванням)
+   dotnet run --project PipelineRunner/PipelineRunner.csproj -- --steps:0 build --steps:1 telemetry --steps:2 check --steps:3 train
+
+   # або аналогічно, але одним прапорцем
+   dotnet run --project PipelineRunner/PipelineRunner.csproj -- --runAll true
    ```
    Налаштування за замовчуванням можна змінити у `PipelineRunner/appsettings.json`.
 
@@ -69,6 +73,14 @@
 - `Telemetry:OutputPath` — шлях до тимчасових або постійних датасетів;
 - `Training:Enabled` — дозволяє пропустити або виконати етап ML;
 - `Training:RunName` — підпис експерименту для подальшої ідентифікації.
+
+Параметри керування кроками пайплайну задаються явними прапорцями або аргументами командного рядка:
+
+- `RunAll` (`--runAll` або скорочено `--all`) — запускає всі кроки; за замовчуванням вимкнено.
+- `Build` / `Telemetry` / `Check` / `Train` — окремі прапорці для виконання відповідних кроків.
+- `Steps` — список кроків (наприклад, `["build", "telemetry"]` в `appsettings.json` або `--steps:0 build --steps:1 telemetry` у CLI). Значення нечутливі до регістру, допускаються коми/крапки з комою для короткого запису в одному аргументі.
+
+Пайплайн виконує крок, якщо ввімкнено `RunAll`, установлено відповідний прапорець або крок явно присутній у `Steps`. Це дозволяє точно визначити потрібні етапи через конфіг або командний рядок і уникнути неочікуваного запуску за замовчуванням.
 
 ## Додаткові ресурси
 Більш детальні примітки щодо AI/ML-підходів — у каталозі `docs/`. За потреби можна комбінувати CLI та PipelineRunner, щоб швидко підготувати контрольні датасети з різними сценаріями і повторно використати їх у навчанні.
