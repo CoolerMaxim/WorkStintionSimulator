@@ -71,7 +71,7 @@ public record FeatureVector(
 
 public class ModelInput
 {
-    [VectorType]
+    [VectorType(9)]
     public float[] Features { get; set; } = Array.Empty<float>();
 
     [ColumnName("Label")]
