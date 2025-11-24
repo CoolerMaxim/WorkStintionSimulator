@@ -4,7 +4,7 @@
 
 ## Структура репозиторію
 - `TelemetryGenerator.Core` — ядро генератора. Описує сутності вузла, конфігурацію сценаріїв та моделі аномалій, надає API для побудови часових рядів.
-- `TelemetryGenerator.Cli` — консольний інтерфейс поверх Core, що формує CSV-файли телеметрії й дозволяє задавати параметри генерації з командного рядка.
+- `TelemetryGenerator.Cli` — бібліотека сервісів запуску генерації, яку можна підключити через DI та викликати із застосунків без консольного парсера.
 - `TelemetryGenerator.DataQualityChecker` — бібліотека, яка валідує згенеровані дані: структуру колонок, діапазони значень та наявність пропусків.
 - `AI.Training` — приклади побудови й оцінки ML-пайплайнів на згенерованій телеметрії (Jupyter notebooks, конфігурації експериментів).
 - `PipelineRunner` — оркестратор, який автоматизує повний цикл: збірку рішень, генерацію телеметрії, перевірку якості, підготовку датасетів і тренування моделей.
@@ -15,17 +15,29 @@
    ```bash
    dotnet build TelemetryGenerator.sln
    ```
-2. **Генерація телеметрії через CLI**
-   ```bash
-   dotnet run --project TelemetryGenerator.Cli/TelemetryGenerator.Cli.csproj -- \
-     --scenario normal-day \
-     --duration 24h \
-     --step-minutes 5 \
-     --workstation-id WS-001 \
-     --output ./out/telemetry.csv \
-     --seed 12345
+2. **Генерація телеметрії у власному сервісі**
+   Додайте `TelemetryGenerationRunner` у DI та викличте його у будь-якому застосунку (web API, бекграунд-воркер тощо). Приклад мінімального API:
+
+   ```csharp
+   using Microsoft.AspNetCore.Builder;
+   using Microsoft.Extensions.DependencyInjection;
+   using Microsoft.Extensions.Hosting;
+   using TelemetryGenerator.Cli;
+
+   var builder = WebApplication.CreateBuilder(args);
+   builder.Services.AddTelemetryGenerationRunner();
+
+   var app = builder.Build();
+
+   app.MapPost("/generate", async (TelemetryGenerationRequest request, TelemetryGenerationRunner runner, CancellationToken ct) =>
+   {
+       await runner.RunAsync(request, ct);
+       return Results.Accepted();
+   });
+
+   await app.RunAsync();
    ```
-   Використовуйте `--seed`, щоб зробити вибірку детермінованою та легко відтворювати експерименти.
+   Запит `POST /generate` приймає JSON з полями `TelemetryGenerationRequest`, виконує `RunAsync` та коректно обробляє `CancellationToken` без консольного парсера.
 3. **Запуск пайплайну** (послідовно build → telemetry → check → train)
    ```bash
    dotnet run --project PipelineRunner/PipelineRunner.csproj -- --all
@@ -33,28 +45,27 @@
    Налаштування за замовчуванням можна змінити у `PipelineRunner/appsettings.json`.
 
 ## Основні параметри генерації
-**TelemetryGenerator.Cli** приймає ключі, які дозволяють детально контролювати вихідні дані:
+**TelemetryGenerationRequest** описує параметри генерації, які можна передати у веб‑ендпоінт чи сервіс:
 
-- `--scenario <ім'я>` — назва сценарію (наприклад, `normal-day`, `overheat`, `power-surge`). Визначає набір аномалій та частоту їх появи.
-- `--duration <тривалість>` — загальний час симуляції у форматі `1h`, `24h`, `3d` тощо. Визначає довжину часових рядів.
-- `--step-minutes <крок>` — інтервал між точками вимірювань у хвилинах. Менші значення дають більше точок та більший обсяг файлу.
-- `--workstation-id <ідентифікатор>` — логічне ім'я/ID вузла, яке буде проставлене у кожному рядку CSV для простішого фільтрування.
-- `--output <шлях>` — шлях до цільового CSV-файлу. Директорії створюються автоматично, якщо їх немає.
-- `--seed <число>` — фіксує генератор випадкових чисел. З однаковим seed та параметрами дані будуть тотожними.
-- `--format <csv|parquet>` (за наявності підтримки) — вибір формату вихідного файлу. CSV підходить для швидкого огляду, Parquet — для роботи з великими датасетами.
-- `--metrics <список>` — явний перелік метрик для генерації (наприклад, `temperature,pressure,vibration`). Якщо не вказано, використовується базовий профіль сценарію.
+- `Scenario` — назва сценарію (наприклад, `normal-day`, `overheat`, `power-surge`). Визначає набір аномалій та частоту їх появи.
+- `Duration` — загальний час симуляції у форматі `1h`, `24h`, `3d` тощо. Визначає довжину часових рядів.
+- `StepMinutes` — інтервал між точками вимірювань у хвилинах. Менші значення дають більше точок та більший обсяг файлу.
+- `WorkstationId` — логічне ім'я/ID вузла, яке буде проставлене у кожному рядку CSV для простішого фільтрування.
+- `OutputPath` — шлях до цільового CSV-файлу. Директорії створюються автоматично, якщо їх немає.
+- `Seed` — фіксує генератор випадкових чисел. З однаковим seed та параметрами дані будуть тотожними.
+- `Difficulty`, `NodeProfile`, `SpeakersConfigured` — додаткові параметри для налаштування характеру аномалій та профілю вузла.
 
 ## Робота з пайплайном
 **PipelineRunner** автоматизує типовий сценарій використання:
 
 1. **Збірка** — відновлює залежності та компілює рішення.
-2. **Генерація** — викликає `TelemetryGenerator.Cli` із параметрами з `appsettings.json` (можна змінювати тривалість, сценарії та вихідні шляхи).
+2. **Генерація** — використовує `TelemetryGenerationRunner` із параметрами з `appsettings.json` (можна змінювати тривалість, сценарії та вихідні шляхи).
 3. **Перевірка якості** — запускає `TelemetryGenerator.DataQualityChecker`, який аналізує створений файл на наявність пропусків, некоректних типів та викидів за межі допустимих діапазонів.
 4. **Тренування** — передає очищені дані в `AI.Training` для побудови моделей і збереження метрик.
 
 Ключові параметри `PipelineRunner` задаються в `PipelineRunner/appsettings.json`. Типові поля:
 - `Telemetry:Scenario` — сценарій для генерації;
-- `Telemetry:Duration` і `Telemetry:StepMinutes` — аналогічно параметрам CLI;
+- `Telemetry:Duration` і `Telemetry:StepMinutes` — аналогічно полям `TelemetryGenerationRequest`;
 - `Telemetry:OutputPath` — шлях до тимчасових або постійних датасетів;
 - `Training:Enabled` — дозволяє пропустити або виконати етап ML;
 - `Training:RunName` — підпис експерименту для подальшої ідентифікації.

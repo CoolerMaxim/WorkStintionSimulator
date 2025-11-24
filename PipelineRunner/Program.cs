@@ -4,14 +4,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PipelineRunner.Options;
 using PipelineRunner.Steps;
-using TelemetryGenerator.Generation;
+using TelemetryGenerator.Cli;
 
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services
     .AddLogging()
-    .AddTelemetryGeneration()
-    .AddTransient<TelemetryGenerator.Cli.TelemetryGenerationRunner>();
+    .AddTelemetryGenerationRunner();
 
 builder.Services
     .AddOptions<PipelineOptions>()
