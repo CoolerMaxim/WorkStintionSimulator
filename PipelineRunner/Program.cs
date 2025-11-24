@@ -12,8 +12,7 @@ var steps = new List<PipelineStep>
     new("build", config.ShouldRunBuild, () => RunBuild(config)),
     new("telemetry", config.ShouldRunTelemetry, () => RunTelemetry(config)),
     new("check", config.ShouldRunCheck, () => RunQualityCheck(config)),
-    new("train", config.ShouldRunTrain, () => RunTraining(config)),
-    new("simulate", config.ShouldRunSimulate, () => RunSimulation(config))
+    new("train", config.ShouldRunTrain, () => RunTraining(config))
 };
 
 foreach (var step in steps)
@@ -129,12 +128,6 @@ static int RunTraining(PipelineConfig config)
     }
 }
 
-static int RunSimulation(PipelineConfig config)
-{
-    Console.WriteLine($"Running workstation simulator: {config.WorkstationProjectPath}");
-    return RunProcess("dotnet", ["run", "--project", config.WorkstationProjectPath], config.WorkingDirectory);
-}
-
 static int RunProcess(string fileName, IEnumerable<string> arguments, string workingDirectory)
 {
     using var process = new Process
@@ -166,7 +159,6 @@ internal sealed class PipelineConfig
         WorkingDirectory = Directory.GetCurrentDirectory();
         SolutionPath = GetPath(args, "--solution", defaults.SolutionPath ?? Path.Combine(WorkingDirectory, "TelemetryGenerator.sln"));
         TelemetryProjectPath = GetPath(args, "--telemetry-project", defaults.TelemetryProjectPath ?? Path.Combine(WorkingDirectory, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj"));
-        WorkstationProjectPath = GetPath(args, "--simulate-project", defaults.WorkstationProjectPath ?? Path.Combine(WorkingDirectory, "WorkstationJobSimulator.csproj"));
 
         Scenario = args.GetValueOrDefault("--scenario", defaults.Scenario ?? "normal-day");
         Duration = args.GetValueOrDefault("--duration", defaults.Duration ?? "24h");
@@ -184,28 +176,25 @@ internal sealed class PipelineConfig
         QualityJsonPath = GetPath(args, "--quality-json", defaults.QualityJsonPath ?? Path.Combine(outputDirectory, "DataQualityReport.json"));
         TrainingOutput = GetPath(args, "--training-output", defaults.TrainingOutput ?? Path.Combine(outputDirectory, "training-output"));
 
-        var stepFlags = new[] { "--build", "--telemetry", "--check", "--train", "--simulate" };
+        var stepFlags = new[] { "--build", "--telemetry", "--check", "--train" };
         var hasSpecificSteps = args.Keys.Any(k => stepFlags.Contains(k, StringComparer.OrdinalIgnoreCase));
         RunAll = args.ContainsKey("--all") || (!hasSpecificSteps && defaults.RunAll);
         Build = args.ContainsKey("--build") || defaults.Build;
         Telemetry = args.ContainsKey("--telemetry") || defaults.Telemetry;
         Check = args.ContainsKey("--check") || defaults.Check;
         Train = args.ContainsKey("--train") || defaults.Train;
-        Simulate = args.ContainsKey("--simulate") || defaults.Simulate;
     }
 
     public bool ShouldRunBuild => RunAll || Build;
     public bool ShouldRunTelemetry => RunAll || Telemetry;
     public bool ShouldRunCheck => RunAll || Check;
     public bool ShouldRunTrain => RunAll || Train;
-    public bool ShouldRunSimulate => RunAll || Simulate;
 
     public bool RunAll { get; }
     public bool Build { get; }
     public bool Telemetry { get; }
     public bool Check { get; }
     public bool Train { get; }
-    public bool Simulate { get; }
     public string Scenario { get; }
     public string Duration { get; }
     public int StepMinutes { get; }
@@ -221,7 +210,6 @@ internal sealed class PipelineConfig
     public string TrainingOutput { get; }
     public string SolutionPath { get; }
     public string TelemetryProjectPath { get; }
-    public string WorkstationProjectPath { get; }
     public string WorkingDirectory { get; }
 
     public static PipelineConfig Parse(string[] args)
@@ -288,14 +276,12 @@ internal sealed class PipelineDefaults
     public string? TrainingOutput { get; set; }
     public string? SolutionPath { get; set; }
     public string? TelemetryProjectPath { get; set; }
-    public string? WorkstationProjectPath { get; set; }
 
     public bool RunAll { get; set; } = true;
     public bool Build { get; set; }
     public bool Telemetry { get; set; }
     public bool Check { get; set; }
     public bool Train { get; set; }
-    public bool Simulate { get; set; }
 
     public static PipelineDefaults Load(string configPath)
     {
