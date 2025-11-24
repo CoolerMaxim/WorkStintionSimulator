@@ -1,0 +1,13 @@
+{
+  "solution": {
+    "path": "TelemetryGenerator.sln",
+    "projects": [
+      "AI.Training\\AI.Training.csproj",
+      "TelemetryGenerator.Core\\TelemetryGenerator.Core.csproj",
+      "TelemetryGenerator.Generation\\TelemetryGenerator.Generation.csproj",
+      "TelemetryGenerator.DataQualityChecker\\TelemetryGenerator.DataQualityChecker.csproj",
+      "TelemetryGenerator.Cli\\TelemetryGenerator.Cli.csproj",
+      "TelemetryGenerator.Generation.Tests\\TelemetryGenerator.Generation.Tests.csproj"
+    ]
+  }
+}
