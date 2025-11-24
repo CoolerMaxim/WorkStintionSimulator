@@ -1,27 +1,28 @@
 using System.Globalization;
+using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
 
 namespace TelemetryGenerator.Core.Services;
 
 public sealed class TelemetryGenerationOptions
 {
-    public string Scenario { get; set; } = "normal-day";
+    public string Scenario { get; set; } = TelemetryDefaults.Scenario;
 
-    public Difficulty Difficulty { get; set; } = Difficulty.Normal;
+    public Difficulty Difficulty { get; set; } = TelemetryDefaults.DefaultDifficulty;
 
-    public DateTime Start { get; set; } = DateTime.Now;
+    public DateTime Start { get; set; } = TelemetryDefaults.Start;
 
-    public TimeSpan Duration { get; set; } = TimeSpan.FromHours(24);
+    public TimeSpan Duration { get; set; } = TelemetryDefaults.Duration;
 
-    public TimeSpan Step { get; set; } = TimeSpan.FromMinutes(5);
+    public TimeSpan Step { get; set; } = TelemetryDefaults.Step;
 
-    public string WorkstationId { get; set; } = "WS-001";
+    public string WorkstationId { get; set; } = TelemetryDefaults.WorkstationId;
 
-    public int SpeakersConfigured { get; set; } = 4;
+    public int SpeakersConfigured { get; set; } = TelemetryDefaults.SpeakersConfigured;
 
-    public string NodeProfile { get; set; } = "randomized";
+    public string NodeProfile { get; set; } = TelemetryDefaults.NodeProfile;
 
-    public string OutputPath { get; set; } = Path.Combine(Environment.CurrentDirectory, "telemetry.csv");
+    public string OutputPath { get; set; } = TelemetryDefaults.BuildOutputPath();
 
     public int? Seed { get; set; }
 

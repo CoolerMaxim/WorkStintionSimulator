@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Linq;
 using Microsoft.Extensions.Options;
+using TelemetryGenerator.Core.Configuration;
 
 namespace PipelineRunner.Options;
 
@@ -14,7 +14,7 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
 
         if (string.IsNullOrWhiteSpace(options.Start))
         {
-            options.Start = DateTime.Now.ToString("O", CultureInfo.InvariantCulture);
+            options.Start = TelemetryDefaults.StartIsoString;
         }
 
         options.OutputPath = Normalize(options.OutputPath, options.WorkingDirectory);
