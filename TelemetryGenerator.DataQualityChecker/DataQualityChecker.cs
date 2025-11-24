@@ -1,4 +1,5 @@
 using TelemetryGenerator.DataQualityChecker.Analyzers;
+using TelemetryGenerator.DataQualityChecker.Configuration;
 using TelemetryGenerator.DataQualityChecker.Models;
 using TelemetryGenerator.DataQualityChecker.Reporting;
 using TelemetryGenerator.DataQualityChecker.Services;
@@ -7,42 +8,48 @@ namespace TelemetryGenerator.DataQualityChecker;
 
 public sealed class DataQualityChecker
 {
+    private readonly DataQualityCheckerOptions _options;
     private readonly CsvLoader _loader;
-    private readonly StructureAnalyzer _structureAnalyzer;
-    private readonly TimeGridAnalyzer _timeGridAnalyzer;
-    private readonly PhysicsAnalyzer _physicsAnalyzer;
-    private readonly AnomalyAnalyzer _anomalyAnalyzer;
-    private readonly ScenarioAnalyzer _scenarioAnalyzer;
-    private readonly MLFitnessAnalyzer _mlFitnessAnalyzer;
+    private readonly StructureAnalyzer? _structureAnalyzer;
+    private readonly TimeGridAnalyzer? _timeGridAnalyzer;
+    private readonly PhysicsAnalyzer? _physicsAnalyzer;
+    private readonly AnomalyAnalyzer? _anomalyAnalyzer;
+    private readonly ScenarioAnalyzer? _scenarioAnalyzer;
+    private readonly MLFitnessAnalyzer? _mlFitnessAnalyzer;
     private readonly ReportBuilder _reportBuilder;
 
-    public DataQualityChecker()
+    public DataQualityChecker(DataQualityCheckerOptions? options = null)
     {
+        _options = options ?? DataQualityCheckerOptions.LoadDefault();
         _loader = new CsvLoader();
-        _structureAnalyzer = new StructureAnalyzer();
-        _timeGridAnalyzer = new TimeGridAnalyzer();
-        _physicsAnalyzer = new PhysicsAnalyzer();
-        _anomalyAnalyzer = new AnomalyAnalyzer();
-        _scenarioAnalyzer = new ScenarioAnalyzer();
-        _mlFitnessAnalyzer = new MLFitnessAnalyzer();
+        _structureAnalyzer = _options.EnableStructureAnalyzer ? new StructureAnalyzer() : null;
+        _timeGridAnalyzer = _options.EnableTimeGridAnalyzer ? new TimeGridAnalyzer() : null;
+        _physicsAnalyzer = _options.EnablePhysicsAnalyzer ? new PhysicsAnalyzer() : null;
+        _anomalyAnalyzer = _options.EnableAnomalyAnalyzer ? new AnomalyAnalyzer() : null;
+        _scenarioAnalyzer = _options.EnableScenarioAnalyzer ? new ScenarioAnalyzer() : null;
+        _mlFitnessAnalyzer = _options.EnableMlFitnessAnalyzer ? new MLFitnessAnalyzer() : null;
         _reportBuilder = new ReportBuilder();
     }
 
     public (string markdown, string json, DataQualityReport report) Run(string csvPath, string datasetName)
     {
         var loadResult = _loader.Load(csvPath);
-        var structure = _structureAnalyzer.Analyze(loadResult);
         var recordList = loadResult.Records;
 
-        var results = new List<AnalyzerResult> { structure };
+        var results = new List<AnalyzerResult>();
+
+        AddIfConfigured(_structureAnalyzer, analyzer => analyzer.Analyze(loadResult), results);
 
         if (recordList.Any())
         {
-            results.Add(_timeGridAnalyzer.Analyze(recordList));
-            results.Add(_physicsAnalyzer.Analyze(recordList));
-            results.Add(_anomalyAnalyzer.Analyze(recordList));
-            results.Add(_scenarioAnalyzer.Analyze(recordList));
-            results.AddRange(_mlFitnessAnalyzer.Analyze(recordList));
+            AddIfConfigured(_timeGridAnalyzer, analyzer => analyzer.Analyze(recordList), results);
+            AddIfConfigured(_physicsAnalyzer, analyzer => analyzer.Analyze(recordList), results);
+            AddIfConfigured(_anomalyAnalyzer, analyzer => analyzer.Analyze(recordList), results);
+            AddIfConfigured(_scenarioAnalyzer, analyzer => analyzer.Analyze(recordList), results);
+            if (_mlFitnessAnalyzer is not null)
+            {
+                results.AddRange(_mlFitnessAnalyzer.Analyze(recordList));
+            }
         }
 
         var summary = BuildSummary(results);
@@ -73,5 +80,16 @@ public sealed class DataQualityChecker
         }
 
         return new QualitySummary(QualityOutcome.Pass, "Dataset is ready for model training");
+    }
+
+    private static void AddIfConfigured<TAnalyzer>(TAnalyzer? analyzer, Func<TAnalyzer, AnalyzerResult> analyze, List<AnalyzerResult> results)
+        where TAnalyzer : class
+    {
+        if (analyzer is null)
+        {
+            return;
+        }
+
+        results.Add(analyze(analyzer));
     }
 }
