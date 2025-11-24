@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelemetryGenerator.Core.Enums;
+using TelemetryGenerator.Core.Utilities;
 using TelemetryGenerator.Core.Services;
 using TelemetryGenerator.Generation;
 
@@ -51,7 +52,7 @@ public sealed class TelemetryGenerationRunner
         }
 
         var start = ParseStart(request.Start);
-        if (!TryParseDuration(request.Duration, out var duration))
+        if (!DurationParser.TryParse(request.Duration, out var duration))
         {
             duration = TimeSpan.FromHours(24);
         }
@@ -114,33 +115,6 @@ public sealed class TelemetryGenerationRunner
         }
 
         return DateTime.Now;
-    }
-
-    private static bool TryParseDuration(string value, out TimeSpan duration)
-    {
-        value = value.Trim();
-        if (value.EndsWith("d", StringComparison.OrdinalIgnoreCase) &&
-            double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var days))
-        {
-            duration = TimeSpan.FromDays(days);
-            return true;
-        }
-
-        if (value.EndsWith("h", StringComparison.OrdinalIgnoreCase) &&
-            double.TryParse(value[..^1], NumberStyles.Float, CultureInfo.InvariantCulture, out var hours))
-        {
-            duration = TimeSpan.FromHours(hours);
-            return true;
-        }
-
-        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var plainHours))
-        {
-            duration = TimeSpan.FromHours(plainHours);
-            return true;
-        }
-
-        duration = TimeSpan.Zero;
-        return false;
     }
 
     private static string ResolveOutputPath(string output)

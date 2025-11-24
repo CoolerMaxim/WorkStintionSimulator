@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Options;
 using TelemetryGenerator.Core.Enums;
+using TelemetryGenerator.Core.Utilities;
 
 namespace PipelineRunner.Options;
 
