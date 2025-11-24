@@ -46,13 +46,15 @@ public class TrainingPipeline
         var records = _loader.Load(csvPath);
         var (trainRecords, testRecords) = _loader.TemporalSplit(records, _options.TrainFraction);
 
-        var trainFeatures = _extractor.Extract(trainRecords);
-        var testFeatures = _extractor.Extract(testRecords);
+        var trainFeatures = _extractor.Extract(trainRecords).ToList();
+        var testFeatures = _extractor.Extract(testRecords).ToList();
 
-        var trainInputs = _labels.ToModelInputs(trainFeatures);
-        var testInputs = _labels.ToModelInputs(testFeatures);
+        var trainInputs = _labels.ToModelInputs(trainFeatures).ToList();
+        var testInputs = _labels.ToModelInputs(testFeatures).ToList();
 
-        var evaluationCount = Math.Max(1, (int)(testInputs.Count * _options.ClampedEvaluationFraction));
+        EnsureTrainingHasMultipleClasses(trainInputs, trainFeatures, testInputs, testFeatures);
+
+        var evaluationCount = CalculateEvaluationCount(testInputs.Count);
         var evaluationInputs = testInputs.Take(evaluationCount).ToList();
         var evaluationFeatures = testFeatures.Take(evaluationCount).ToList();
 
@@ -99,5 +101,59 @@ public class TrainingPipeline
         File.WriteAllText(Path.Combine(outputDirectory, "TrainingReport.md"), markdown);
 
         return (report, modelPath, metadataPath);
+    }
+
+    private int CalculateEvaluationCount(int testCount)
+    {
+        if (testCount == 0)
+        {
+            return 0;
+        }
+
+        var evaluationCount = (int)(testCount * _options.ClampedEvaluationFraction);
+
+        if (evaluationCount == 0)
+        {
+            evaluationCount = 1;
+        }
+
+        return Math.Min(evaluationCount, testCount);
+    }
+
+    private static void EnsureTrainingHasMultipleClasses(
+        List<ModelInput> trainInputs,
+        List<FeatureVector> trainFeatures,
+        List<ModelInput> testInputs,
+        List<FeatureVector> testFeatures)
+    {
+        var trainLabels = trainInputs.Select(i => i.Label).Distinct().ToHashSet();
+
+        if (trainLabels.Count >= 2)
+        {
+            return;
+        }
+
+        var missingFromTraining = testInputs
+            .Select((input, index) => (input, index))
+            .Where(entry => !trainLabels.Contains(entry.input.Label))
+            .ToList();
+
+        if (missingFromTraining.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Training data must contain at least two classes, but only one was found.");
+        }
+
+        foreach (var entry in missingFromTraining)
+        {
+            trainInputs.Add(entry.input);
+            trainFeatures.Add(testFeatures[entry.index]);
+        }
+
+        foreach (var index in missingFromTraining.Select(e => e.index).OrderByDescending(i => i))
+        {
+            testInputs.RemoveAt(index);
+            testFeatures.RemoveAt(index);
+        }
     }
 }
