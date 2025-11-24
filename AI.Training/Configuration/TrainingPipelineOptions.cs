@@ -8,6 +8,8 @@ public sealed class TrainingPipelineOptions
     public double TrainFraction { get; init; } = 0.7;
     public double EvaluationFraction { get; init; } = 0.5;
 
+    public double ClampedEvaluationFraction => Math.Clamp(EvaluationFraction, 0, 1);
+
     public static TrainingPipelineOptions LoadDefault()
     {
         var baseDirectory = AppContext.BaseDirectory;

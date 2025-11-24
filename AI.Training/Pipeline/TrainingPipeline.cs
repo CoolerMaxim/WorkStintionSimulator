@@ -52,7 +52,7 @@ public class TrainingPipeline
         var trainInputs = _labels.ToModelInputs(trainFeatures);
         var testInputs = _labels.ToModelInputs(testFeatures);
 
-        var evaluationCount = Math.Max(1, (int)(testInputs.Count * _options.EvaluationFraction));
+        var evaluationCount = Math.Max(1, (int)(testInputs.Count * _options.ClampedEvaluationFraction));
         var evaluationInputs = testInputs.Take(evaluationCount).ToList();
         var evaluationFeatures = testFeatures.Take(evaluationCount).ToList();
 
