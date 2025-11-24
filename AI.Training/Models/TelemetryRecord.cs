@@ -31,7 +31,6 @@ public class TelemetryRecord
     public float AmplifierOutPower { get; set; }
 
     [LoadColumn(13)]
-    [ColumnName("NetworkLatency")]
     public float NetworkLatencyMs { get; set; }
 
     [LoadColumn(14)]
