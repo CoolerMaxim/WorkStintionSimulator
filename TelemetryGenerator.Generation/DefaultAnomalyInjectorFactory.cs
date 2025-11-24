@@ -1,3 +1,4 @@
+using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Services;
 
 namespace TelemetryGenerator.Generation;

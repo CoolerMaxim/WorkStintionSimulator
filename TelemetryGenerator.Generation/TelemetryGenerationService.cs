@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
 using TelemetryGenerator.Core;
 using TelemetryGenerator.Core.Configuration;
@@ -18,6 +19,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
     private readonly IBatteryModelFactory _batteryModelFactory;
     private readonly ITemperatureModelFactory _temperatureModelFactory;
     private readonly IMaintenanceSchedulerFactory _maintenanceSchedulerFactory;
+    private readonly IScenarioRegistry _scenarioRegistry;
     private readonly IModuleProvider _moduleProvider;
 
     public TelemetryGenerationService(
@@ -26,6 +28,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         IBatteryModelFactory batteryModelFactory,
         ITemperatureModelFactory temperatureModelFactory,
         IMaintenanceSchedulerFactory maintenanceSchedulerFactory,
+        IScenarioRegistry scenarioRegistry,
         IModuleProvider moduleProvider)
     {
         _randomFactory = randomFactory;
@@ -33,6 +36,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         _batteryModelFactory = batteryModelFactory;
         _temperatureModelFactory = temperatureModelFactory;
         _maintenanceSchedulerFactory = maintenanceSchedulerFactory;
+        _scenarioRegistry = scenarioRegistry;
         _moduleProvider = moduleProvider;
     }
 
@@ -52,7 +56,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         var batteryModel = _batteryModelFactory.Create();
         var temperatureModel = _temperatureModelFactory.Create();
         var profile = DifficultyProfiles.Create(difficulty);
-        var modules = _moduleProvider.CreateModules(profile, temperatureModel);
+        var modules = _moduleProvider.CreateModules(profile, temperatureModel).ToList();
 
         var generator = new TelemetryGenerator.Core.TelemetryGenerator(
             modules,
@@ -60,7 +64,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
             anomalyInjector,
             maintenanceScheduler);
 
-        var scenario = CreateScenario(options.Scenario, difficulty, anomalyInjector);
+        var scenario = _scenarioRegistry.Resolve(options.Scenario, difficulty, anomalyInjector);
         var endTime = options.Start + options.Duration;
         var samples = generator
             .Run(config, scenario, options.Start, options.Step, rnd)
@@ -115,19 +119,6 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
             "fixed" or "baseline" => NodeConfig.CreateDefault(workStationId, speakersConfigured),
             "random" or "randomized" or "mixed" => NodeConfigurationFactory.CreateRandomized(workStationId, speakersConfigured, difficulty, rnd),
             _ => NodeConfigurationFactory.CreateRandomized(workStationId, speakersConfigured, difficulty, rnd)
-        };
-    }
-
-    private static Scenario CreateScenario(string name, Difficulty difficulty, AnomalyInjector injector)
-    {
-        return name.ToLowerInvariant() switch
-        {
-            "normal" or "normalday" or "normal-day" => ScenarioFactory.CreateNormalDayScenario(difficulty),
-            "powerloss" or "longpowerloss" => ScenarioFactory.CreateLongPowerLossWithCutoffScenario(difficulty, injector),
-            "speakers" or "speakers-degradation" => ScenarioFactory.CreateSpeakersDegradationWithRepairScenario(difficulty, injector),
-            "net" or "net-failure" => ScenarioFactory.CreateNetDegradationToFailureScenario(difficulty, injector),
-            "cooling" or "cooling-service" => ScenarioFactory.CreateCoolingDegradationWithServiceScenario(difficulty, injector),
-            _ => throw new ArgumentOutOfRangeException(nameof(name), name, "Unknown scenario.")
         };
     }
 
@@ -199,8 +190,31 @@ public static class TelemetryGenerationServiceCollectionExtensions
         services.AddSingleton<IBatteryModelFactory, DefaultBatteryModelFactory>();
         services.AddSingleton<ITemperatureModelFactory, DefaultTemperatureModelFactory>();
         services.AddSingleton<IMaintenanceSchedulerFactory, DefaultMaintenanceSchedulerFactory>();
+        services.AddSingleton<IScenarioRegistry>(_ => CreateScenarioRegistry());
         services.AddSingleton<IModuleProvider, DefaultModuleProvider>();
         services.AddSingleton<ITelemetryGenerationService, TelemetryGenerationService>();
         return services;
+    }
+
+    private static ScenarioRegistry CreateScenarioRegistry()
+    {
+        var registry = new ScenarioRegistry();
+        Register(registry, (difficulty, _) => ScenarioFactory.CreateNormalDayScenario(difficulty), "normal", "normalday", "normal-day");
+        Register(registry, ScenarioFactory.CreateLongPowerLossWithCutoffScenario, "powerloss", "longpowerloss");
+        Register(registry, ScenarioFactory.CreateSpeakersDegradationWithRepairScenario, "speakers", "speakers-degradation");
+        Register(registry, ScenarioFactory.CreateNetDegradationToFailureScenario, "net", "net-failure");
+        Register(registry, ScenarioFactory.CreateCoolingDegradationWithServiceScenario, "cooling", "cooling-service");
+        return registry;
+    }
+
+    private static void Register(
+        ScenarioRegistry registry,
+        Func<Difficulty, AnomalyInjector, Scenario> factory,
+        params string[] names)
+    {
+        foreach (var name in names)
+        {
+            registry.Register(name, factory);
+        }
     }
 }
