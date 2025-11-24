@@ -41,7 +41,7 @@ public class TrainingDataValidator
         }
 
         var labelCounts = recordList
-            .Select(r => FeatureExtractor.ParseHealthState(r.HealthState))
+            .Select(FeatureExtractor.ResolveLabel)
             .GroupBy(label => label)
             .ToDictionary(g => g.Key, g => g.Count());
 
