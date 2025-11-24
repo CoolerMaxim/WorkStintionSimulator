@@ -23,6 +23,8 @@ public sealed class TelemetryGenerationOptions
 
     public string OutputPath { get; set; } = Path.Combine(Environment.CurrentDirectory, "telemetry.csv");
 
+    public int? Seed { get; set; }
+
     public override string ToString()
     {
         return string.Join(
@@ -35,7 +37,8 @@ public sealed class TelemetryGenerationOptions
             $"workstation={WorkstationId}",
             $"speakers={SpeakersConfigured}",
             $"nodeProfile={NodeProfile}",
-            $"output={OutputPath}");
+            $"output={OutputPath}",
+            $"seed={(Seed.HasValue ? Seed.Value.ToString(CultureInfo.InvariantCulture) : "unset")}");
     }
 }
 
