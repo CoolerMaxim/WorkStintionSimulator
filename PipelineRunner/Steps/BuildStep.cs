@@ -18,7 +18,11 @@ internal sealed class BuildStep
     public Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Building solution: {Solution}", _options.SolutionPath);
-        var exitCode = ProcessRunner.Run("dotnet", ["build", _options.SolutionPath], _options.WorkingDirectory, _logger);
+        var exitCode = ProcessRunner.Run(
+            "dotnet",
+            ["build", _options.SolutionPath, "-o", _options.BuildOutputDirectory],
+            _options.WorkingDirectory,
+            _logger);
         return Task.FromResult(exitCode);
     }
 }
