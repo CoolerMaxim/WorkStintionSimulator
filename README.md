@@ -46,7 +46,7 @@
    # або аналогічно, але одним прапорцем
    dotnet run --project PipelineRunner/PipelineRunner.csproj -- --runAll true
    ```
-   Налаштування за замовчуванням можна змінити у `PipelineRunner/appsettings.json`.
+   Налаштування за замовчуванням можна змінити у `PipelineRunner/appsettings.json`. Для кроку `build` використовується solution filter `TelemetryGenerator.Build.slnf`, щоб уникнути блокування збірки самим процесом `PipelineRunner` (його залежності лишаються в окремій конфігурації). Якщо потрібно зібрати всі проєкти `TelemetryGenerator.sln`, виконуйте цю команду окремо від активного запуску пайплайну.
 
 ## Основні параметри генерації
 **TelemetryGenerationRequest** описує параметри генерації, які можна передати у веб‑ендпоінт чи сервіс:
