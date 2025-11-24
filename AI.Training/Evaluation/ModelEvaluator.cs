@@ -18,7 +18,7 @@ public class ModelEvaluator
 
     private class PredictionRow
     {
-        public string PredictedLabel { get; set; } = string.Empty;
+        public uint PredictedLabel { get; set; }
         public uint Label { get; set; }
     }
 
@@ -51,7 +51,7 @@ public class ModelEvaluator
         foreach (var row in rows)
         {
             var actual = (HealthState)row.Label;
-            var predicted = FeatureExtractor.ParseHealthState(row.PredictedLabel);
+            var predicted = (HealthState)row.PredictedLabel;
             confusion[(int)actual, (int)predicted]++;
         }
 
