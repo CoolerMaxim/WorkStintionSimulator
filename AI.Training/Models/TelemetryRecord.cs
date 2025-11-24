@@ -31,7 +31,7 @@ public class TelemetryRecord
     public float AmplifierOutPower { get; set; }
 
     [LoadColumn(13)]
-    [ColumnName("NetworkLatencyMs")]
+    [ColumnName("NetworkLatency")]
     public float NetworkLatencyMs { get; set; }
 
     [LoadColumn(14)]
@@ -40,18 +40,18 @@ public class TelemetryRecord
     [LoadColumn(15)]
     public bool IsAnomaly { get; set; }
 
-    [LoadColumn(17)]
+    [LoadColumn(18)]
     [ColumnName("NodeUptimeMinutes")]
     public float NodeUptimeMinutes { get; set; }
 
-    [LoadColumn(18)]
+    [LoadColumn(19)]
     [ColumnName("TotalRuntimeHours")]
     public float TotalRuntimeHours { get; set; }
 
-    [LoadColumn(20)]
+    [LoadColumn(21)]
     public string RestartHistory { get; set; } = string.Empty;
 
-    [LoadColumn(26)]
+    [LoadColumn(27)]
     public string HealthState { get; set; } = string.Empty;
 }
 

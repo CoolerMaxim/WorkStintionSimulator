@@ -30,10 +30,10 @@ public class DatasetLoader
                 new TextLoader.Column(nameof(TelemetryRecord.NetworkLatencyMs), DataKind.Single, 13),
                 new TextLoader.Column(nameof(TelemetryRecord.SpeakersConfigured), DataKind.Single, 14),
                 new TextLoader.Column(nameof(TelemetryRecord.IsAnomaly), DataKind.Boolean, 15),
-                new TextLoader.Column(nameof(TelemetryRecord.NodeUptimeMinutes), DataKind.Single, 17),
-                new TextLoader.Column(nameof(TelemetryRecord.TotalRuntimeHours), DataKind.Single, 18),
-                new TextLoader.Column(nameof(TelemetryRecord.RestartHistory), DataKind.String, 20),
-                new TextLoader.Column(nameof(TelemetryRecord.HealthState), DataKind.String, 26)
+                new TextLoader.Column(nameof(TelemetryRecord.NodeUptimeMinutes), DataKind.Single, 18),
+                new TextLoader.Column(nameof(TelemetryRecord.TotalRuntimeHours), DataKind.Single, 19),
+                new TextLoader.Column(nameof(TelemetryRecord.RestartHistory), DataKind.String, 21),
+                new TextLoader.Column(nameof(TelemetryRecord.HealthState), DataKind.String, 27)
             }
         });
 
