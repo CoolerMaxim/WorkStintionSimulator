@@ -19,7 +19,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
 
         Validate(options);
 
-        var rnd = new Random();
+        var rnd = options.Seed.HasValue ? new Random(options.Seed.Value) : new Random();
         var difficulty = options.Difficulty;
         var nodeProfile = options.NodeProfile ?? "randomized";
         var config = CreateNodeConfig(nodeProfile, options.WorkstationId, options.SpeakersConfigured, difficulty, rnd);
@@ -84,6 +84,11 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         if (string.IsNullOrWhiteSpace(options.OutputPath))
         {
             throw new ArgumentException("OutputPath is required.", nameof(options));
+        }
+
+        if (options.Seed is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "Seed must be non-negative when specified.");
         }
     }
 

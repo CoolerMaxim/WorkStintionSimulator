@@ -22,8 +22,10 @@
      --duration 24h \
      --step-minutes 5 \
      --workstation-id WS-001 \
-     --output ./out/telemetry.csv
+     --output ./out/telemetry.csv \
+     --seed 12345
    ```
+   Параметр `--seed` робить генерацію детермінованою, тож однакові налаштування відтворюють той самий датасет.
 3. **Запуск пайплайну** (послідовно build → telemetry → check → train)
    ```bash
    dotnet run --project PipelineRunner/PipelineRunner.csproj -- --all

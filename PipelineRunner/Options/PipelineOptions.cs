@@ -23,6 +23,8 @@ public sealed class PipelineOptions
 
     public string OutputPath { get; set; } = Path.Combine(Environment.CurrentDirectory, "out", "telemetry.csv");
 
+    public int? Seed { get; set; }
+
     public string? DatasetName { get; set; }
 
     public string QualityMarkdownPath { get; set; } = Path.Combine(Environment.CurrentDirectory, "out", "DataQualityReport.md");

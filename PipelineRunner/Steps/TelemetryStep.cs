@@ -51,7 +51,8 @@ internal sealed class TelemetryStep
             WorkstationId = _options.WorkstationId,
             SpeakersConfigured = _options.SpeakersConfigured,
             NodeProfile = _options.NodeProfile,
-            OutputPath = _options.OutputPath
+            OutputPath = _options.OutputPath,
+            Seed = _options.Seed
         };
 
         await _telemetryGenerationService.GenerateAsync(options, cancellationToken);
