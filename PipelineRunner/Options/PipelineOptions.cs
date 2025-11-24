@@ -37,7 +37,7 @@ public sealed class PipelineOptions
 
     public string TrainingOutput { get; set; } = Path.Combine(ApplicationRoot, "out", "training-output");
 
-    public string SolutionPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.sln");
+    public string SolutionPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Build.slnf");
 
     public string TelemetryProjectPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj");
 
