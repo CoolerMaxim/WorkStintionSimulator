@@ -11,11 +11,16 @@ internal sealed class QualityCheckStep
 {
     private readonly ILogger<QualityCheckStep> _logger;
     private readonly PipelineOptions _options;
+    private readonly DataQualityChecker _dataQualityChecker;
 
-    public QualityCheckStep(IOptions<PipelineOptions> options, ILogger<QualityCheckStep> logger)
+    public QualityCheckStep(
+        IOptions<PipelineOptions> options,
+        DataQualityChecker dataQualityChecker,
+        ILogger<QualityCheckStep> logger)
     {
         _logger = logger;
         _options = options.Value;
+        _dataQualityChecker = dataQualityChecker;
     }
 
     public Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
@@ -28,8 +33,7 @@ internal sealed class QualityCheckStep
             _options.QualityJsonPath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(_options.QualityMarkdownPath) ?? _options.WorkingDirectory);
-        var checker = new DataQualityChecker();
-        var (markdown, json, report) = checker.Run(_options.OutputPath, _options.DatasetName!);
+        var (markdown, json, report) = _dataQualityChecker.Run(_options.OutputPath, _options.DatasetName!);
 
         File.WriteAllText(_options.QualityMarkdownPath, markdown);
         File.WriteAllText(_options.QualityJsonPath, json);

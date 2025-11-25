@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using TelemetryGenerator.DataQualityChecker.Analyzers;
 using TelemetryGenerator.DataQualityChecker.Configuration;
 using TelemetryGenerator.DataQualityChecker.Models;
@@ -18,17 +19,26 @@ public sealed class DataQualityChecker
     private readonly MLFitnessAnalyzer? _mlFitnessAnalyzer;
     private readonly ReportBuilder _reportBuilder;
 
-    public DataQualityChecker(DataQualityCheckerOptions? options = null)
+    public DataQualityChecker(
+        IOptionsSnapshot<DataQualityCheckerOptions> options,
+        CsvLoader loader,
+        StructureAnalyzer structureAnalyzer,
+        TimeGridAnalyzer timeGridAnalyzer,
+        PhysicsAnalyzer physicsAnalyzer,
+        AnomalyAnalyzer anomalyAnalyzer,
+        ScenarioAnalyzer scenarioAnalyzer,
+        MLFitnessAnalyzer mlFitnessAnalyzer,
+        ReportBuilder reportBuilder)
     {
-        _options = options ?? DataQualityCheckerOptions.LoadDefault();
-        _loader = new CsvLoader();
-        _structureAnalyzer = _options.EnableStructureAnalyzer ? new StructureAnalyzer() : null;
-        _timeGridAnalyzer = _options.EnableTimeGridAnalyzer ? new TimeGridAnalyzer() : null;
-        _physicsAnalyzer = _options.EnablePhysicsAnalyzer ? new PhysicsAnalyzer() : null;
-        _anomalyAnalyzer = _options.EnableAnomalyAnalyzer ? new AnomalyAnalyzer() : null;
-        _scenarioAnalyzer = _options.EnableScenarioAnalyzer ? new ScenarioAnalyzer() : null;
-        _mlFitnessAnalyzer = _options.EnableMlFitnessAnalyzer ? new MLFitnessAnalyzer() : null;
-        _reportBuilder = new ReportBuilder();
+        _options = options.Value;
+        _loader = loader;
+        _structureAnalyzer = _options.EnableStructureAnalyzer ? structureAnalyzer : null;
+        _timeGridAnalyzer = _options.EnableTimeGridAnalyzer ? timeGridAnalyzer : null;
+        _physicsAnalyzer = _options.EnablePhysicsAnalyzer ? physicsAnalyzer : null;
+        _anomalyAnalyzer = _options.EnableAnomalyAnalyzer ? anomalyAnalyzer : null;
+        _scenarioAnalyzer = _options.EnableScenarioAnalyzer ? scenarioAnalyzer : null;
+        _mlFitnessAnalyzer = _options.EnableMlFitnessAnalyzer ? mlFitnessAnalyzer : null;
+        _reportBuilder = reportBuilder;
     }
 
     public (string markdown, string json, DataQualityReport report) Run(string csvPath, string datasetName)
