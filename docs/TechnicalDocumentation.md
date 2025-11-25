@@ -40,7 +40,7 @@
 ## 3. Основні сценарії роботи системи
 ### Генерація телеметрії
 1. **Вхід**: `TelemetryGenerationRequest` (CLI/web) → `GenerationConfig` (канонічний контракт сервісу).
-2. **Runner**: `GenerationConfigFactory.Create()` зливає запит із `SimulationSettings`, парсить тривалість/час старту, нормалізує шляхи, перевіряє валідність (порожні поля, крок > тривалості тощо) і логує параметри.
+2. **Runner**: `GenerationConfigFactory.Create()` зливає запит із `SimulationSettings`, парсить тривалість/час старту, нормалізує шляхи, перевіряє валідність (порожні поля, крок > тривалості тощо) і логує параметри. `PipelineRunner` перед викликом Runner приводить `SimulationSettings`/`GenerationConfig.OutputPath` до абсолютного шляху відносно `PipelineOptions.WorkingDirectory`, щоб генерація, датасет і звіти писалися в один каталог.
 3. **Сервіс**: `TelemetryGenerationService.GenerateAsync()` створює `Random`, будує `NodeConfig` за профілем (`fixed`/`randomized`), фабрикує `AnomalyInjector`, `MaintenanceScheduler`, `BatteryModel`, `TemperatureModel`, модулі вузла й обирає сценарій через `ScenarioRegistry`.
 4. **Цикл**: `TelemetryGenerator.Run()` проходить фази сценарію, на кожному кроці (TimeSpan `Step`) виконує: оновлення доступності живлення, `IModule.Update` для всіх модулів, оновлення батареї, інжекцію аномалій, планування сервісу, обчислення супервізорних сигналів (здоров’я ПЗ/вузла) і проєкцію в `TelemetrySample`.
 5. **Вихід**: `TelemetryGenerationService` перетворює вибірку на CSV (рядок заголовка + значення з форматуванням) і зберігає у `OutputPath`.
@@ -95,7 +95,7 @@
 
 ### `PipelineRunner/appsettings.json`
 Секції наслідують попередні поля `Simulation`, плюс:
-- **Dataset**: `workingDirectory`, `outputPath`, `datasetName`, `qualityMarkdownPath`, `qualityJsonPath` — визначають, де лежить CSV та куди писати звіти; порожні шляхи призведуть до запису відносно робочої директорії.
+- **Dataset**: `workingDirectory`, `outputPath`, `datasetName`, `qualityMarkdownPath`, `qualityJsonPath` — визначають, де лежить CSV та куди писати звіти; усі шляхи нормалізуються відносно `workingDirectory` через `PathNormalizer.NormalizeRelativeToWorkingDirectory`.
 - **ValidationSettings**: `enable*Analyzer` прапорці для кожного аналізатора DataQualityChecker.
 - **Training**: `workingDirectory`, `outputDirectory`, `trainFraction`, `evaluationFraction`, `modelType`, `seed` — параметри ML‑пайплайну; валідація гарантує частки в (0,1].
 - Глобальні прапорці: `solutionPath`, `telemetryProjectPath`, `runAll`, `build`, `telemetry`, `check`, `train`, `steps` — визначають шлях до sln/csproj і набір активних кроків.
@@ -137,10 +137,18 @@
 - **`GenerationConfig`**: `SimulationConfig` + `OutputPath`, `Seed` — канонічний контракт сервісу генерації.
 - **`TelemetryGenerationRequest`**: DTO з сирими рядковими значеннями для CLI/web, мапиться у `GenerationConfig` через `GenerationConfigFactory`.
 - **`PipelineOptions`**: дублює параметри Simulation + `SolutionPath`, `TelemetryProjectPath`, `WorkingDirectory`, прапорці `RunAll/Build/Telemetry/Check/Train`, список `Steps`.
-- **`DatasetSettings`**: шляхи до вхідного CSV та звітів; похідні властивості `Resolved*` нормалізують шляхи.
+- **`DatasetSettings`**: шляхи до вхідного CSV та звітів; під час побудови `PipelineConfig` усі шляхи нормалізуються відносно `PipelineOptions.WorkingDirectory` (через `PathNormalizer.NormalizeRelativeToWorkingDirectory`).
 - **`ValidationSettings` / `DataQualityCheckerOptions`**: прапорці `Enable*Analyzer` для підключення/вимкнення окремих перевірок.
 - **`TrainingSettings`**: `WorkingDirectory`, `OutputDirectory`, `TrainFraction`, `EvaluationFraction`, `ModelType`, `Seed`; метод `ToPipelineOptions()` готує опції для ML‑пайплайну.
 - **`DatasetConfig` / `TrainingConfig` / `PipelineConfig`**: канонічні типізовані агрегати для пайплайну (телеметрія + датасет + ML), будуються через `PipelineConfigFactory` з відповідних секцій `appsettings.json`.
+
+**Єдиний шаблон шляхів**
+- Базою для всіх шляхів у PipelineRunner є `workingDirectory` (root у `PipelineOptions`).
+- `Simulation.outputPath`, `Dataset.outputPath` та `Dataset.Quality*Path` перетворюються на абсолютні шляхи відносно цієї бази, тому генерація CSV та звіти якості завжди йдуть у один каталог.
+- Приклад: якщо `workingDirectory = "C:/runs"` і `Dataset.outputPath = "out/telemetry.csv"`, то
+  - `GenerationConfig.OutputPath` = `C:/runs/out/telemetry.csv`;
+  - `Dataset.QualityMarkdownPath` = `C:/runs/out/DataQualityReport.md`;
+  - `Dataset.QualityJsonPath` = `C:/runs/out/DataQualityReport.json`.
 
 ## 8. Зовнішні залежності
 - **NuGet**: `Microsoft.Extensions.DependencyInjection`/`Options`/`Logging` (через SDK) для DI, конфігурацій і логування; інших сторонніх ML/БД бібліотек у кодовій базі немає.

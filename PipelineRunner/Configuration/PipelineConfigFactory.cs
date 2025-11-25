@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using PipelineRunner.Options;
 using TelemetryGenerator.Cli;
 using TelemetryGenerator.Core.Configuration;
@@ -12,6 +14,15 @@ public static class PipelineConfigFactory
         TrainingSettings trainingSettings,
         SimulationSettings simulationSettings)
     {
+        var workingDirectory = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+            options.WorkingDirectory,
+            AppContext.BaseDirectory);
+
+        var normalizedSimulationSettings = NormalizeSimulationSettings(simulationSettings, workingDirectory);
+        var generationOutputPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+            string.IsNullOrWhiteSpace(options.OutputPath) ? normalizedSimulationSettings.OutputPath : options.OutputPath,
+            workingDirectory);
+
         var request = new TelemetryGenerationRequest
         {
             Scenario = options.Scenario,
@@ -22,19 +33,33 @@ public static class PipelineConfigFactory
             WorkstationId = options.WorkstationId,
             SpeakersConfigured = options.SpeakersConfigured,
             NodeProfile = options.NodeProfile,
-            OutputPath = options.OutputPath,
+            OutputPath = generationOutputPath,
             Seed = options.Seed
         };
 
-        var generation = GenerationConfigFactory.Create(simulationSettings, request);
+        var generation = GenerationConfigFactory.Create(normalizedSimulationSettings, request);
+
+        var datasetWorkingDirectory = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+            datasetSettings.WorkingDirectory,
+            workingDirectory);
+
+        var datasetOutputPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+            datasetSettings.OutputPath,
+            datasetWorkingDirectory);
 
         var dataset = new DatasetConfig
         {
-            WorkingDirectory = datasetSettings.ResolvedWorkingDirectory,
-            OutputPath = datasetSettings.ResolvedOutputPath,
-            DatasetName = datasetSettings.ResolvedDatasetName,
-            QualityMarkdownPath = datasetSettings.ResolvedQualityMarkdownPath,
-            QualityJsonPath = datasetSettings.ResolvedQualityJsonPath
+            WorkingDirectory = datasetWorkingDirectory,
+            OutputPath = datasetOutputPath,
+            DatasetName = string.IsNullOrWhiteSpace(datasetSettings.DatasetName)
+                ? Path.GetFileNameWithoutExtension(datasetOutputPath)
+                : datasetSettings.DatasetName,
+            QualityMarkdownPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+                datasetSettings.QualityMarkdownPath,
+                datasetWorkingDirectory),
+            QualityJsonPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+                datasetSettings.QualityJsonPath,
+                datasetWorkingDirectory)
         };
 
         var training = new TrainingConfig
@@ -56,9 +81,30 @@ public static class PipelineConfigFactory
             ShouldRunTelemetry = options.ShouldRunTelemetry,
             ShouldRunCheck = options.ShouldRunCheck,
             ShouldRunTrain = options.ShouldRunTrain,
-            WorkingDirectory = options.WorkingDirectory,
+            WorkingDirectory = workingDirectory,
             SolutionPath = options.SolutionPath,
             TelemetryProjectPath = options.TelemetryProjectPath
+        };
+    }
+
+    private static SimulationSettings NormalizeSimulationSettings(
+        SimulationSettings simulationSettings,
+        string workingDirectory)
+    {
+        return new SimulationSettings
+        {
+            Scenario = simulationSettings.Scenario,
+            Difficulty = simulationSettings.Difficulty,
+            Start = simulationSettings.Start,
+            Duration = simulationSettings.Duration,
+            StepMinutes = simulationSettings.StepMinutes,
+            WorkstationId = simulationSettings.WorkstationId,
+            SpeakersConfigured = simulationSettings.SpeakersConfigured,
+            NodeProfile = simulationSettings.NodeProfile,
+            OutputPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
+                simulationSettings.OutputPath,
+                workingDirectory),
+            Seed = simulationSettings.Seed
         };
     }
 }
