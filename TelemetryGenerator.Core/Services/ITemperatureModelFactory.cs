@@ -4,5 +4,5 @@ namespace TelemetryGenerator.Core.Services;
 
 public interface ITemperatureModelFactory
 {
-    TemperatureModel Create();
+    ITemperatureModel Create();
 }

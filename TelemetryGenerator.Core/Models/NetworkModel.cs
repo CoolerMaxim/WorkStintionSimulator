@@ -4,7 +4,7 @@ using TelemetryGenerator.Core.State;
 
 namespace TelemetryGenerator.Core.Models;
 
-public sealed class NetworkModel
+public sealed class NetworkModel : INetworkModel
 {
     public void Update(NodeState state, DifficultyProfile profile, Random rnd)
     {

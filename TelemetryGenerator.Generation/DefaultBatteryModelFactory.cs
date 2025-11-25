@@ -5,7 +5,7 @@ namespace TelemetryGenerator.Generation;
 
 public sealed class DefaultBatteryModelFactory : IBatteryModelFactory
 {
-    public BatteryModel Create()
+    public IBatteryModel Create()
     {
         return new BatteryModel();
     }

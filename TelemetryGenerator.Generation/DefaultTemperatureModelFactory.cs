@@ -5,7 +5,7 @@ namespace TelemetryGenerator.Generation;
 
 public sealed class DefaultTemperatureModelFactory : ITemperatureModelFactory
 {
-    public TemperatureModel Create()
+    public ITemperatureModel Create()
     {
         return new TemperatureModel();
     }

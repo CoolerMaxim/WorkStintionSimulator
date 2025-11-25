@@ -3,7 +3,7 @@ using TelemetryGenerator.Core.State;
 
 namespace TelemetryGenerator.Core.Models;
 
-public sealed class BatteryModel
+public sealed class BatteryModel : IBatteryModel
 {
     public void Update(
         NodeState state,

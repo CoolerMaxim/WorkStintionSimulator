@@ -5,12 +5,12 @@ using TelemetryGenerator.Core.State;
 namespace TelemetryGenerator.Core.Modules;
 
 public sealed class NetworkControllerModule : IModule
-{
-    private readonly NetworkModel _networkModel;
+{    
+    private readonly INetworkModel _networkModel;
     private readonly DifficultyProfile _profile;
 
-    public NetworkControllerModule(NetworkModel networkModel, DifficultyProfile profile)
-    {
+    public NetworkControllerModule(INetworkModel networkModel, DifficultyProfile profile)
+    {        
         _networkModel = networkModel;
         _profile = profile;
     }

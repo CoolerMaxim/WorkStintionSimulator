@@ -12,13 +12,13 @@ namespace TelemetryGenerator.Core;
 public sealed class TelemetryGenerator
 {
     private readonly IReadOnlyList<IModule> _modules;
-    private readonly BatteryModel _batteryModel;
+    private readonly IBatteryModel _batteryModel;
     private readonly AnomalyInjector _anomalyInjector;
     private readonly MaintenanceScheduler _maintenanceScheduler;
 
     public TelemetryGenerator(
         IReadOnlyList<IModule> modules,
-        BatteryModel batteryModel,
+        IBatteryModel batteryModel,
         AnomalyInjector anomalyInjector,
         MaintenanceScheduler maintenanceScheduler)
     {

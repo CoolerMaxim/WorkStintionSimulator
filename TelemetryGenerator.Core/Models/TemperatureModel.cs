@@ -2,7 +2,7 @@ using TelemetryGenerator.Core.State;
 
 namespace TelemetryGenerator.Core.Models;
 
-public sealed class TemperatureModel
+public sealed class TemperatureModel : ITemperatureModel
 {
     public double GetOutsideTemperature(DateTime t, Random rnd)
     {

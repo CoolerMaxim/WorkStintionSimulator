@@ -18,6 +18,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
     private readonly IAnomalyInjectorFactory _anomalyInjectorFactory;
     private readonly IBatteryModelFactory _batteryModelFactory;
     private readonly ITemperatureModelFactory _temperatureModelFactory;
+    private readonly INetworkModel _networkModel;
     private readonly IMaintenanceSchedulerFactory _maintenanceSchedulerFactory;
     private readonly IScenarioRegistry _scenarioRegistry;
     private readonly IModuleProvider _moduleProvider;
@@ -27,6 +28,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         IAnomalyInjectorFactory anomalyInjectorFactory,
         IBatteryModelFactory batteryModelFactory,
         ITemperatureModelFactory temperatureModelFactory,
+        INetworkModel networkModel,
         IMaintenanceSchedulerFactory maintenanceSchedulerFactory,
         IScenarioRegistry scenarioRegistry,
         IModuleProvider moduleProvider)
@@ -35,6 +37,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         _anomalyInjectorFactory = anomalyInjectorFactory;
         _batteryModelFactory = batteryModelFactory;
         _temperatureModelFactory = temperatureModelFactory;
+        _networkModel = networkModel;
         _maintenanceSchedulerFactory = maintenanceSchedulerFactory;
         _scenarioRegistry = scenarioRegistry;
         _moduleProvider = moduleProvider;
@@ -56,7 +59,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         var batteryModel = _batteryModelFactory.Create();
         var temperatureModel = _temperatureModelFactory.Create();
         var profile = DifficultyProfiles.Create(difficulty);
-        var modules = _moduleProvider.CreateModules(profile, temperatureModel).ToList();
+        var modules = _moduleProvider.CreateModules(profile, temperatureModel, _networkModel).ToList();
 
         var generator = new TelemetryGenerator.Core.TelemetryGenerator(
             modules,
@@ -189,6 +192,7 @@ public static class TelemetryGenerationServiceCollectionExtensions
         services.AddSingleton<IAnomalyInjectorFactory, DefaultAnomalyInjectorFactory>();
         services.AddSingleton<IBatteryModelFactory, DefaultBatteryModelFactory>();
         services.AddSingleton<ITemperatureModelFactory, DefaultTemperatureModelFactory>();
+        services.AddSingleton<INetworkModel, NetworkModel>();
         services.AddSingleton<IMaintenanceSchedulerFactory, DefaultMaintenanceSchedulerFactory>();
         services.AddSingleton<IScenarioRegistry>(_ => CreateScenarioRegistry());
         services.AddSingleton<IModuleProvider, DefaultModuleProvider>();
