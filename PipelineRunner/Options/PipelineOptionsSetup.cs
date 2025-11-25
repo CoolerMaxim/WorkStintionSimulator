@@ -34,6 +34,8 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         options.SolutionPath = Normalize(options.SolutionPath, options.WorkingDirectory);
         options.TelemetryProjectPath = Normalize(options.TelemetryProjectPath, options.WorkingDirectory);
 
+        options.Steps ??= new List<string>();
+
         options.Steps = options.Steps
             .SelectMany(step => step.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -42,6 +44,8 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
 
     private static string Normalize(string path, string basePath)
     {
-        return Path.GetFullPath(path, basePath);
+        return string.IsNullOrWhiteSpace(path)
+            ? path
+            : Path.GetFullPath(path, basePath);
     }
 }

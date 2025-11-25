@@ -5,35 +5,33 @@ namespace PipelineRunner.Options;
 
 public sealed class PipelineOptions
 {
-    private static readonly string ApplicationRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+    public required string Scenario { get; set; }
 
-    public string Scenario { get; set; } = string.Empty;
-
-    public string Duration { get; set; } = string.Empty;
+    public required string Duration { get; set; }
 
     public int StepMinutes { get; set; }
 
-    public string WorkstationId { get; set; } = string.Empty;
+    public required string WorkstationId { get; set; }
 
-    public string Difficulty { get; set; } = string.Empty;
+    public required string Difficulty { get; set; }
 
-    public string Start { get; set; } = string.Empty;
+    public required string Start { get; set; }
 
     public int SpeakersConfigured { get; set; }
 
-    public string NodeProfile { get; set; } = string.Empty;
+    public required string NodeProfile { get; set; }
 
-    public string OutputPath { get; set; } = string.Empty;
+    public required string OutputPath { get; set; }
 
     public int? Seed { get; set; }
 
-    public string SolutionPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Build.slnf");
+    public required string SolutionPath { get; set; }
 
-    public string TelemetryProjectPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj");
+    public required string TelemetryProjectPath { get; set; }
 
-    public string WorkingDirectory { get; set; } = ApplicationRoot;
+    public required string WorkingDirectory { get; set; }
 
-    public bool RunAll { get; set; } = false;
+    public bool RunAll { get; set; }
 
     public bool Build { get; set; }
 
@@ -43,7 +41,7 @@ public sealed class PipelineOptions
 
     public bool Train { get; set; }
 
-    public List<string> Steps { get; set; } = new();
+    public required List<string> Steps { get; set; }
 
     public bool ShouldRunBuild => ShouldRunStep(Build, "build");
 
@@ -57,6 +55,7 @@ public sealed class PipelineOptions
     {
         return RunAll
             || explicitFlag
-            || Steps.Any(step => string.Equals(step, stepName, StringComparison.OrdinalIgnoreCase));
+            || (Steps ?? Enumerable.Empty<string>())
+                .Any(step => string.Equals(step, stepName, StringComparison.OrdinalIgnoreCase));
     }
 }

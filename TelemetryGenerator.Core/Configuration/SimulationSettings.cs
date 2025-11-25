@@ -2,23 +2,23 @@ namespace TelemetryGenerator.Core.Configuration;
 
 public sealed class SimulationSettings
 {
-    public string Scenario { get; set; } = "normal-day";
+    public required string Scenario { get; set; }
 
-    public string Difficulty { get; set; } = "Normal";
+    public required string Difficulty { get; set; }
 
-    public string Start { get; set; } = string.Empty;
+    public required string Start { get; set; }
 
-    public string Duration { get; set; } = "24h";
+    public required string Duration { get; set; }
 
-    public int StepMinutes { get; set; } = 5;
+    public int StepMinutes { get; set; }
 
-    public string WorkstationId { get; set; } = "WS-001";
+    public required string WorkstationId { get; set; }
 
-    public int SpeakersConfigured { get; set; } = 4;
+    public int SpeakersConfigured { get; set; }
 
-    public string NodeProfile { get; set; } = "randomized";
+    public required string NodeProfile { get; set; }
 
-    public string OutputPath { get; set; } = "./telemetry.csv";
+    public required string OutputPath { get; set; }
 
     public int? Seed { get; set; }
 }

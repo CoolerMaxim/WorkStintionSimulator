@@ -4,17 +4,17 @@ namespace PipelineRunner.Options;
 
 public sealed class TrainingSettings
 {
-    public string WorkingDirectory { get; set; } = ApplicationPaths.ApplicationRoot;
+    public required string WorkingDirectory { get; set; }
 
-    public string OutputDirectory { get; set; } = "./out/training-output";
+    public required string OutputDirectory { get; set; }
 
-    public double TrainFraction { get; set; } = 0.7;
+    public double TrainFraction { get; set; }
 
-    public double EvaluationFraction { get; set; } = 0.5;
+    public double EvaluationFraction { get; set; }
 
-    public string ModelType { get; set; } = "binary";
+    public required string ModelType { get; set; }
 
-    public int Seed { get; set; } = 7;
+    public int Seed { get; set; }
 
     public string ResolvedWorkingDirectory => Path.GetFullPath(WorkingDirectory, ApplicationPaths.ApplicationRoot);
 
