@@ -31,13 +31,8 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         options.Seed ??= _simulationSettings.Seed;
 
         options.OutputPath = Normalize(options.OutputPath, options.WorkingDirectory);
-        options.QualityMarkdownPath = Normalize(options.QualityMarkdownPath, options.WorkingDirectory);
-        options.QualityJsonPath = Normalize(options.QualityJsonPath, options.WorkingDirectory);
-        options.TrainingOutput = Normalize(options.TrainingOutput, options.WorkingDirectory);
         options.SolutionPath = Normalize(options.SolutionPath, options.WorkingDirectory);
         options.TelemetryProjectPath = Normalize(options.TelemetryProjectPath, options.WorkingDirectory);
-
-        options.DatasetName ??= Path.GetFileNameWithoutExtension(options.OutputPath);
 
         options.Steps = options.Steps
             .SelectMany(step => step.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

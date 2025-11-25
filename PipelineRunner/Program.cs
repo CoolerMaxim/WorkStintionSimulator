@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PipelineRunner.Options;
+using PipelineRunner.Services;
 using PipelineRunner.Steps;
 using TelemetryGenerator.Cli;
 using TelemetryGenerator.Core.Configuration;
@@ -38,10 +39,27 @@ builder.Services
 builder.Services
     .AddSingleton<IValidateOptions<PipelineOptions>, PipelineOptionsValidator>()
     .AddSingleton<IPostConfigureOptions<PipelineOptions>, PipelineOptionsSetup>()
+    .AddOptions<DatasetSettings>()
+    .Bind(builder.Configuration.GetSection("Dataset"))
+    .ValidateOnStart()
+    .Services
+    .AddOptions<ValidationSettings>()
+    .Bind(builder.Configuration.GetSection("ValidationSettings"))
+    .ValidateOnStart()
+    .Services
+    .AddOptions<TrainingSettings>()
+    .Bind(builder.Configuration.GetSection("Training"))
+    .ValidateOnStart()
+    .Services
+    .AddSingleton<IValidateOptions<DatasetSettings>, DatasetSettingsValidator>()
+    .AddSingleton<IValidateOptions<ValidationSettings>, ValidationSettingsValidator>()
+    .AddSingleton<IValidateOptions<TrainingSettings>, TrainingSettingsValidator>()
     .AddScoped<BuildStep>()
     .AddScoped<TelemetryStep>()
     .AddScoped<QualityCheckStep>()
-    .AddScoped<TrainStep>();
+    .AddScoped<TrainStep>()
+    .AddScoped<IDataQualityJob, DataQualityJob>()
+    .AddScoped<ITrainingJob, TrainingJob>();
 
 using var host = builder.Build();
 var options = host.Services.GetRequiredService<IOptions<PipelineOptions>>().Value;

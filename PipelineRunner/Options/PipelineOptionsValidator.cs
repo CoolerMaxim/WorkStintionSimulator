@@ -36,21 +36,6 @@ internal sealed class PipelineOptionsValidator : IValidateOptions<PipelineOption
             failures.Add("OutputPath is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.QualityMarkdownPath))
-        {
-            failures.Add("QualityMarkdownPath is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.QualityJsonPath))
-        {
-            failures.Add("QualityJsonPath is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(options.TrainingOutput))
-        {
-            failures.Add("TrainingOutput is required.");
-        }
-
         if (string.IsNullOrWhiteSpace(options.SolutionPath))
         {
             failures.Add("SolutionPath is required.");

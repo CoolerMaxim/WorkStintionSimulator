@@ -27,14 +27,6 @@ public sealed class PipelineOptions
 
     public int? Seed { get; set; }
 
-    public string? DatasetName { get; set; }
-
-    public string QualityMarkdownPath { get; set; } = Path.Combine(ApplicationRoot, "out", "DataQualityReport.md");
-
-    public string QualityJsonPath { get; set; } = Path.Combine(ApplicationRoot, "out", "DataQualityReport.json");
-
-    public string TrainingOutput { get; set; } = Path.Combine(ApplicationRoot, "out", "training-output");
-
     public string SolutionPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Build.slnf");
 
     public string TelemetryProjectPath { get; set; } = Path.Combine(ApplicationRoot, "TelemetryGenerator.Cli", "TelemetryGenerator.Cli.csproj");
