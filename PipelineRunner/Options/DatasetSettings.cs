@@ -2,15 +2,15 @@ namespace PipelineRunner.Options;
 
 public sealed class DatasetSettings
 {
-    public string WorkingDirectory { get; set; } = ApplicationPaths.ApplicationRoot;
+    public required string WorkingDirectory { get; set; }
 
-    public string OutputPath { get; set; } = "./out/telemetry.csv";
+    public required string OutputPath { get; set; }
 
     public string? DatasetName { get; set; }
 
-    public string QualityMarkdownPath { get; set; } = "./out/DataQualityReport.md";
+    public required string QualityMarkdownPath { get; set; }
 
-    public string QualityJsonPath { get; set; } = "./out/DataQualityReport.json";
+    public required string QualityJsonPath { get; set; }
 
     public string ResolvedWorkingDirectory => Resolve(WorkingDirectory, ApplicationPaths.ApplicationRoot);
 
