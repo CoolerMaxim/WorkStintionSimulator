@@ -4,5 +4,5 @@ namespace TelemetryGenerator.Core.Services;
 
 public interface IBatteryModelFactory
 {
-    BatteryModel Create();
+    IBatteryModel Create();
 }

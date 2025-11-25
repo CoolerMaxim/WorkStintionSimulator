@@ -10,13 +10,13 @@ namespace TelemetryGenerator.Core.Modules;
 /// - оновлює температури за допомогою TemperatureModel.
 /// </summary>
 public sealed class EnvironmentModule : IModule
-{
-    private readonly TemperatureModel _temperatureModel;
+{    
+    private readonly ITemperatureModel _temperatureModel;
     private readonly double _doorOpenProbabilityPerHour;
     private readonly double _doorCloseProbabilityPerHour;
 
     public EnvironmentModule(
-        TemperatureModel temperatureModel,
+        ITemperatureModel temperatureModel,
         double doorOpenProbabilityPerHour = 0.02,
         double doorCloseProbabilityPerHour = 0.3)
     {
