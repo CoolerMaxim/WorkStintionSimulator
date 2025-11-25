@@ -1,6 +1,7 @@
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PipelineRunner.Configuration;
 using PipelineRunner.Options;
 using TelemetryGenerator.DataQualityChecker;
 using TelemetryGenerator.DataQualityChecker.Models;
@@ -10,18 +11,18 @@ namespace PipelineRunner.Services;
 internal sealed class DataQualityJob : IDataQualityJob
 {
     private readonly ILogger<DataQualityJob> _logger;
-    private readonly DatasetSettings _datasetSettings;
+    private readonly DatasetConfig _datasetConfig;
     private readonly ValidationSettings _validationSettings;
     private readonly DataQualityChecker _dataQualityChecker;
 
     public DataQualityJob(
-        IOptions<DatasetSettings> datasetOptions,
+        PipelineConfig pipelineConfig,
         IOptions<ValidationSettings> validationOptions,
         DataQualityChecker dataQualityChecker,
         ILogger<DataQualityJob> logger)
     {
         _logger = logger;
-        _datasetSettings = datasetOptions.Value;
+        _datasetConfig = pipelineConfig.Dataset;
         _validationSettings = validationOptions.Value;
         _dataQualityChecker = dataQualityChecker;
     }
@@ -30,10 +31,10 @@ internal sealed class DataQualityJob : IDataQualityJob
     {
         _logger.LogInformation(
             "Running data quality checks with csv={Csv}, dataset={Dataset}, markdown={Markdown}, json={Json}",
-            _datasetSettings.ResolvedOutputPath,
-            _datasetSettings.ResolvedDatasetName,
-            _datasetSettings.ResolvedQualityMarkdownPath,
-            _datasetSettings.ResolvedQualityJsonPath);
+            _datasetConfig.OutputPath,
+            _datasetConfig.DatasetName,
+            _datasetConfig.QualityMarkdownPath,
+            _datasetConfig.QualityJsonPath);
 
         _logger.LogDebug(
             "Analyzer configuration: structure={Structure}, timeGrid={TimeGrid}, physics={Physics}, anomaly={Anomaly}, scenario={Scenario}, mlFitness={MlFitness}",
@@ -44,16 +45,16 @@ internal sealed class DataQualityJob : IDataQualityJob
             _validationSettings.EnableScenarioAnalyzer,
             _validationSettings.EnableMlFitnessAnalyzer);
 
-        var qualityDirectory = Path.GetDirectoryName(_datasetSettings.ResolvedQualityMarkdownPath)
-            ?? _datasetSettings.ResolvedWorkingDirectory;
+        var qualityDirectory = Path.GetDirectoryName(_datasetConfig.QualityMarkdownPath)
+            ?? _datasetConfig.WorkingDirectory;
         Directory.CreateDirectory(qualityDirectory);
 
         var (markdown, json, report) = _dataQualityChecker.Run(
-            _datasetSettings.ResolvedOutputPath,
-            _datasetSettings.ResolvedDatasetName);
+            _datasetConfig.OutputPath,
+            _datasetConfig.DatasetName);
 
-        File.WriteAllText(_datasetSettings.ResolvedQualityMarkdownPath, markdown);
-        File.WriteAllText(_datasetSettings.ResolvedQualityJsonPath, json);
+        File.WriteAllText(_datasetConfig.QualityMarkdownPath, markdown);
+        File.WriteAllText(_datasetConfig.QualityJsonPath, json);
 
         var exitCode = report.Summary.Outcome == QualityOutcome.Fail ? 2 : 0;
 

@@ -1,43 +1,45 @@
 using AI.Training.Pipeline;
+using AI.Training.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PipelineRunner.Options;
+using PipelineRunner.Configuration;
 
 namespace PipelineRunner.Services;
 
 internal sealed class TrainingJob : ITrainingJob
 {
     private readonly ILogger<TrainingJob> _logger;
-    private readonly DatasetSettings _datasetSettings;
-    private readonly TrainingSettings _trainingSettings;
+    private readonly PipelineConfig _pipelineConfig;
 
     public TrainingJob(
-        IOptions<DatasetSettings> datasetOptions,
-        IOptions<TrainingSettings> trainingOptions,
+        PipelineConfig pipelineConfig,
         ILogger<TrainingJob> logger)
     {
         _logger = logger;
-        _datasetSettings = datasetOptions.Value;
-        _trainingSettings = trainingOptions.Value;
+        _pipelineConfig = pipelineConfig;
     }
 
     public Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "Training model with csv={Csv} outputDir={Output} modelType={ModelType} trainFraction={TrainFraction} seed={Seed}",
-            _datasetSettings.ResolvedOutputPath,
-            _trainingSettings.ResolvedOutputDirectory,
-            _trainingSettings.ModelType,
-            _trainingSettings.TrainFraction,
-            _trainingSettings.Seed);
+            _pipelineConfig.Dataset.OutputPath,
+            _pipelineConfig.Training.OutputDirectory,
+            _pipelineConfig.Training.ModelType,
+            _pipelineConfig.Training.TrainFraction,
+            _pipelineConfig.Training.Seed);
 
-        Directory.CreateDirectory(_trainingSettings.ResolvedOutputDirectory);
+        Directory.CreateDirectory(_pipelineConfig.Training.OutputDirectory);
 
-        var pipelineOptions = _trainingSettings.ToPipelineOptions();
+        var pipelineOptions = new TrainingPipelineOptions
+        {
+            TrainFraction = _pipelineConfig.Training.TrainFraction,
+            EvaluationFraction = _pipelineConfig.Training.EvaluationFraction,
+            Seed = _pipelineConfig.Training.Seed
+        };
         var pipeline = new TrainingPipeline(pipelineOptions);
         var (report, modelPath, metadataPath) = pipeline.Run(
-            _datasetSettings.ResolvedOutputPath,
-            _trainingSettings.ResolvedOutputDirectory);
+            _pipelineConfig.Dataset.OutputPath,
+            _pipelineConfig.Training.OutputDirectory);
 
         _logger.LogInformation(
             "Metrics: MacroF1={MacroF1:F3}, CriticalF1={CriticalF1:F3}, FailedRecall={FailedRecall:F3}",
