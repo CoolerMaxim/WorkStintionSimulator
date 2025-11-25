@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.Extensions.Options;
 using TelemetryGenerator.Core.Configuration;
@@ -24,7 +25,11 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         options.StepMinutes = options.StepMinutes <= 0 ? _simulationSettings.StepMinutes : options.StepMinutes;
         options.WorkstationId = string.IsNullOrWhiteSpace(options.WorkstationId) ? _simulationSettings.WorkstationId : options.WorkstationId;
         options.Difficulty = string.IsNullOrWhiteSpace(options.Difficulty) ? _simulationSettings.Difficulty : options.Difficulty;
-        options.Start = string.IsNullOrWhiteSpace(options.Start) ? _simulationSettings.Start : options.Start;
+        options.Start = string.IsNullOrWhiteSpace(options.Start)
+            ? string.IsNullOrWhiteSpace(_simulationSettings.Start)
+                ? DateTime.UtcNow.ToString("o")
+                : _simulationSettings.Start
+            : options.Start;
         options.SpeakersConfigured = options.SpeakersConfigured <= 0 ? _simulationSettings.SpeakersConfigured : options.SpeakersConfigured;
         options.NodeProfile = string.IsNullOrWhiteSpace(options.NodeProfile) ? _simulationSettings.NodeProfile : options.NodeProfile;
         options.OutputPath = string.IsNullOrWhiteSpace(options.OutputPath) ? _simulationSettings.OutputPath : options.OutputPath;
