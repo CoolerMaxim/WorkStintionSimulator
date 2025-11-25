@@ -16,7 +16,7 @@ public static class PipelineConfigFactory
     {
         var workingDirectory = PathNormalizer.NormalizeRelativeToWorkingDirectory(
             options.WorkingDirectory,
-            AppContext.BaseDirectory);
+            ApplicationPaths.ApplicationRoot);
 
         var normalizedSimulationSettings = NormalizeSimulationSettings(simulationSettings, workingDirectory);
         var generationOutputPath = PathNormalizer.NormalizeRelativeToWorkingDirectory(
