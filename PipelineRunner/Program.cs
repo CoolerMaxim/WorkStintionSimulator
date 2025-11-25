@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using PipelineRunner.Options;
 using PipelineRunner.Steps;
 using TelemetryGenerator.Cli;
+using TelemetryGenerator.Core.Configuration;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services
     .AddTelemetryGenerationRunner();
 
 builder.Services
+    .Configure<SimulationSettings>(builder.Configuration.GetSection("Simulation"))
     .AddOptions<PipelineOptions>()
     .Bind(builder.Configuration)
     .ValidateOnStart();

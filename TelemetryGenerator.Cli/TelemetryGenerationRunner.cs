@@ -1,10 +1,11 @@
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TelemetryGenerator.Core.Enums;
+using Microsoft.Extensions.Options;
 using TelemetryGenerator.Core.Configuration;
-using TelemetryGenerator.Core.Utilities;
+using TelemetryGenerator.Core.Enums;
 using TelemetryGenerator.Core.Services;
+using TelemetryGenerator.Core.Utilities;
 using TelemetryGenerator.Generation;
 
 namespace TelemetryGenerator.Cli;
@@ -13,10 +14,15 @@ public sealed class TelemetryGenerationRunner
 {
     private readonly ITelemetryGenerationService _telemetryGenerationService;
     private readonly ILogger<TelemetryGenerationRunner> _logger;
+    private readonly SimulationSettings _simulationSettings;
 
-    public TelemetryGenerationRunner(ITelemetryGenerationService telemetryGenerationService, ILogger<TelemetryGenerationRunner> logger)
+    public TelemetryGenerationRunner(
+        ITelemetryGenerationService telemetryGenerationService,
+        IOptions<SimulationSettings> simulationOptions,
+        ILogger<TelemetryGenerationRunner> logger)
     {
         _telemetryGenerationService = telemetryGenerationService;
+        _simulationSettings = simulationOptions.Value;
         _logger = logger;
     }
 
@@ -41,41 +47,36 @@ public sealed class TelemetryGenerationRunner
     {
         services
             .AddLogging()
-            .AddTelemetryGeneration()
-            .AddTransient<TelemetryGenerationRunner>();
+            .AddTelemetryGeneration();
+
+        services.AddOptions<SimulationSettings>();
+        services.AddTransient<TelemetryGenerationRunner>();
     }
 
-    private static TelemetryGenerationOptions BuildTelemetryGenerationOptions(TelemetryGenerationRequest request)
+    private TelemetryGenerationOptions BuildTelemetryGenerationOptions(TelemetryGenerationRequest request)
     {
-        if (!Enum.TryParse<Difficulty>(request.Difficulty, true, out var difficulty))
-        {
-            difficulty = TelemetryDefaults.DefaultDifficulty;
-        }
-
-        var start = ParseStart(request.Start);
-        if (!DurationParser.TryParse(request.Duration, out var duration))
-        {
-            duration = TelemetryDefaults.Duration;
-        }
+        var difficulty = ParseDifficulty(request.Difficulty);
+        var start = ParseStart(string.IsNullOrWhiteSpace(request.Start) ? _simulationSettings.Start : request.Start);
+        var duration = ParseDuration(string.IsNullOrWhiteSpace(request.Duration) ? _simulationSettings.Duration : request.Duration);
 
         var nodeProfile = string.IsNullOrWhiteSpace(request.NodeProfile)
-            ? TelemetryDefaults.NodeProfile
+            ? _simulationSettings.NodeProfile
             : request.NodeProfile.Trim();
 
-        var stepMinutes = request.StepMinutes <= 0 ? TelemetryDefaults.StepMinutes : request.StepMinutes;
+        var stepMinutes = request.StepMinutes <= 0 ? _simulationSettings.StepMinutes : request.StepMinutes;
 
         return new TelemetryGenerationOptions
         {
-            Scenario = string.IsNullOrWhiteSpace(request.Scenario) ? TelemetryDefaults.Scenario : request.Scenario.Trim(),
+            Scenario = string.IsNullOrWhiteSpace(request.Scenario) ? _simulationSettings.Scenario : request.Scenario.Trim(),
             Difficulty = difficulty,
             Start = start,
             Duration = duration,
             Step = TimeSpan.FromMinutes(Math.Max(1, stepMinutes)),
-            WorkstationId = string.IsNullOrWhiteSpace(request.WorkstationId) ? TelemetryDefaults.WorkstationId : request.WorkstationId.Trim(),
-            SpeakersConfigured = Math.Max(1, request.SpeakersConfigured <= 0 ? TelemetryDefaults.SpeakersConfigured : request.SpeakersConfigured),
+            WorkstationId = string.IsNullOrWhiteSpace(request.WorkstationId) ? _simulationSettings.WorkstationId : request.WorkstationId.Trim(),
+            SpeakersConfigured = Math.Max(1, request.SpeakersConfigured <= 0 ? _simulationSettings.SpeakersConfigured : request.SpeakersConfigured),
             NodeProfile = nodeProfile,
-            OutputPath = ResolveOutputPath(request.OutputPath),
-            Seed = request.Seed
+            OutputPath = ResolveOutputPath(string.IsNullOrWhiteSpace(request.OutputPath) ? _simulationSettings.OutputPath : request.OutputPath),
+            Seed = request.Seed ?? _simulationSettings.Seed
         };
     }
 
@@ -112,23 +113,52 @@ public sealed class TelemetryGenerationRunner
         }
     }
 
-    private static DateTime ParseStart(string start)
+    private Difficulty ParseDifficulty(string? difficultyName)
+    {
+        if (!string.IsNullOrWhiteSpace(difficultyName)
+            && Enum.TryParse<Difficulty>(difficultyName, true, out var difficulty))
+        {
+            return difficulty;
+        }
+
+        if (Enum.TryParse<Difficulty>(_simulationSettings.Difficulty, true, out var simulationDifficulty))
+        {
+            return simulationDifficulty;
+        }
+
+        return Difficulty.Normal;
+    }
+
+    private DateTime ParseStart(string start)
     {
         if (DateTime.TryParse(start, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed))
         {
             return parsed;
         }
 
-        return TelemetryDefaults.Start;
+        return DateTime.Now;
+    }
+
+    private TimeSpan ParseDuration(string durationText)
+    {
+        if (DurationParser.TryParse(durationText, out var duration))
+        {
+            return duration;
+        }
+
+        if (DurationParser.TryParse(_simulationSettings.Duration, out var settingsDuration))
+        {
+            return settingsDuration;
+        }
+
+        return TimeSpan.FromHours(24);
     }
 
     private static string ResolveOutputPath(string output)
     {
-        if (string.IsNullOrWhiteSpace(output))
-        {
-            return TelemetryDefaults.BuildOutputPath();
-        }
+        var fallback = Path.Combine(Environment.CurrentDirectory, TelemetryDefaults.OutputFileName);
+        var normalized = string.IsNullOrWhiteSpace(output) ? fallback : output;
 
-        return Path.GetFullPath(output, Environment.CurrentDirectory);
+        return Path.GetFullPath(normalized, Environment.CurrentDirectory);
     }
 }
