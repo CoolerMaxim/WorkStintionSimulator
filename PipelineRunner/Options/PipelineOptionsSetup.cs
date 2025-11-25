@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -41,8 +42,8 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         options.Seed ??= _simulationSettings.Seed;
 
         options.OutputPath = Normalize(options.OutputPath, options.WorkingDirectory);
-        options.SolutionPath = Normalize(options.SolutionPath, options.WorkingDirectory);
-        options.TelemetryProjectPath = Normalize(options.TelemetryProjectPath, options.WorkingDirectory);
+        options.SolutionPath = EnsurePathExists(options.SolutionPath, options.WorkingDirectory);
+        options.TelemetryProjectPath = EnsurePathExists(options.TelemetryProjectPath, options.WorkingDirectory);
 
         options.Steps ??= new List<string>();
 
@@ -57,5 +58,42 @@ internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptio
         return string.IsNullOrWhiteSpace(path)
             ? path
             : Path.GetFullPath(path, basePath);
+    }
+
+    private static string EnsurePathExists(string path, string basePath)
+    {
+        var normalizedPath = Normalize(path, basePath);
+
+        if (string.IsNullOrWhiteSpace(normalizedPath) || File.Exists(normalizedPath))
+        {
+            return normalizedPath;
+        }
+
+        var fileName = Path.GetFileName(normalizedPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return normalizedPath;
+        }
+
+        var currentDirectory = basePath;
+
+        while (!string.IsNullOrWhiteSpace(currentDirectory))
+        {
+            var candidate = Path.Combine(currentDirectory, fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            var parent = Directory.GetParent(currentDirectory);
+            if (parent == null || parent.FullName == currentDirectory)
+            {
+                break;
+            }
+
+            currentDirectory = parent.FullName;
+        }
+
+        return normalizedPath;
     }
 }
