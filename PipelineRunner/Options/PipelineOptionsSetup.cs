@@ -6,16 +6,29 @@ namespace PipelineRunner.Options;
 
 internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptions>
 {
+    private readonly SimulationSettings _simulationSettings;
+
+    public PipelineOptionsSetup(IOptions<SimulationSettings> simulationOptions)
+    {
+        _simulationSettings = simulationOptions.Value;
+    }
+
     public void PostConfigure(string? name, PipelineOptions options)
     {
         options.WorkingDirectory = string.IsNullOrWhiteSpace(options.WorkingDirectory)
             ? Directory.GetCurrentDirectory()
             : Path.GetFullPath(options.WorkingDirectory);
 
-        if (string.IsNullOrWhiteSpace(options.Start))
-        {
-            options.Start = TelemetryDefaults.StartIsoString;
-        }
+        options.Scenario = string.IsNullOrWhiteSpace(options.Scenario) ? _simulationSettings.Scenario : options.Scenario;
+        options.Duration = string.IsNullOrWhiteSpace(options.Duration) ? _simulationSettings.Duration : options.Duration;
+        options.StepMinutes = options.StepMinutes <= 0 ? _simulationSettings.StepMinutes : options.StepMinutes;
+        options.WorkstationId = string.IsNullOrWhiteSpace(options.WorkstationId) ? _simulationSettings.WorkstationId : options.WorkstationId;
+        options.Difficulty = string.IsNullOrWhiteSpace(options.Difficulty) ? _simulationSettings.Difficulty : options.Difficulty;
+        options.Start = string.IsNullOrWhiteSpace(options.Start) ? _simulationSettings.Start : options.Start;
+        options.SpeakersConfigured = options.SpeakersConfigured <= 0 ? _simulationSettings.SpeakersConfigured : options.SpeakersConfigured;
+        options.NodeProfile = string.IsNullOrWhiteSpace(options.NodeProfile) ? _simulationSettings.NodeProfile : options.NodeProfile;
+        options.OutputPath = string.IsNullOrWhiteSpace(options.OutputPath) ? _simulationSettings.OutputPath : options.OutputPath;
+        options.Seed ??= _simulationSettings.Seed;
 
         options.OutputPath = Normalize(options.OutputPath, options.WorkingDirectory);
         options.QualityMarkdownPath = Normalize(options.QualityMarkdownPath, options.WorkingDirectory);

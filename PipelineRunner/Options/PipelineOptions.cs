@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using TelemetryGenerator.Core.Configuration;
-using TelemetryGenerator.Core.Enums;
 
 namespace PipelineRunner.Options;
 
@@ -9,23 +7,23 @@ public sealed class PipelineOptions
 {
     private static readonly string ApplicationRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
 
-    public string Scenario { get; set; } = TelemetryDefaults.Scenario;
+    public string Scenario { get; set; } = string.Empty;
 
-    public string Duration { get; set; } = TelemetryDefaults.DurationText;
+    public string Duration { get; set; } = string.Empty;
 
-    public int StepMinutes { get; set; } = TelemetryDefaults.StepMinutes;
+    public int StepMinutes { get; set; }
 
-    public string WorkstationId { get; set; } = TelemetryDefaults.WorkstationId;
+    public string WorkstationId { get; set; } = string.Empty;
 
-    public string Difficulty { get; set; } = TelemetryDefaults.DifficultyName;
+    public string Difficulty { get; set; } = string.Empty;
 
-    public string Start { get; set; } = TelemetryDefaults.StartIsoString;
+    public string Start { get; set; } = string.Empty;
 
-    public int SpeakersConfigured { get; set; } = TelemetryDefaults.SpeakersConfigured;
+    public int SpeakersConfigured { get; set; }
 
-    public string NodeProfile { get; set; } = TelemetryDefaults.NodeProfile;
+    public string NodeProfile { get; set; } = string.Empty;
 
-    public string OutputPath { get; set; } = TelemetryDefaults.BuildOutputPath(Path.Combine(ApplicationRoot, "out"));
+    public string OutputPath { get; set; } = string.Empty;
 
     public int? Seed { get; set; }
 
