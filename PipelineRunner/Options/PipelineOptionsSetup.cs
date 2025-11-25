@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using TelemetryGenerator.Core.Configuration;
 
@@ -8,17 +9,21 @@ namespace PipelineRunner.Options;
 internal sealed class PipelineOptionsSetup : IPostConfigureOptions<PipelineOptions>
 {
     private readonly SimulationSettings _simulationSettings;
+    private readonly string _contentRootPath;
 
-    public PipelineOptionsSetup(IOptions<SimulationSettings> simulationOptions)
+    public PipelineOptionsSetup(IOptions<SimulationSettings> simulationOptions, IHostEnvironment environment)
     {
         _simulationSettings = simulationOptions.Value;
+        _contentRootPath = environment.ContentRootPath;
     }
 
     public void PostConfigure(string? name, PipelineOptions options)
     {
         options.WorkingDirectory = string.IsNullOrWhiteSpace(options.WorkingDirectory)
-            ? Directory.GetCurrentDirectory()
-            : Path.GetFullPath(options.WorkingDirectory);
+            ? _contentRootPath
+            : options.WorkingDirectory;
+
+        options.WorkingDirectory = Path.GetFullPath(options.WorkingDirectory, _contentRootPath);
 
         options.Scenario = string.IsNullOrWhiteSpace(options.Scenario) ? _simulationSettings.Scenario : options.Scenario;
         options.Duration = string.IsNullOrWhiteSpace(options.Duration) ? _simulationSettings.Duration : options.Duration;
