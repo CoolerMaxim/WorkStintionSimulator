@@ -1,24 +1,23 @@
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PipelineRunner.Options;
+using PipelineRunner.Configuration;
 
 namespace PipelineRunner.Steps;
 
 internal sealed class BuildStep
 {
     private readonly ILogger<BuildStep> _logger;
-    private readonly PipelineOptions _options;
+    private readonly PipelineConfig _config;
 
-    public BuildStep(IOptions<PipelineOptions> options, ILogger<BuildStep> logger)
+    public BuildStep(PipelineConfig config, ILogger<BuildStep> logger)
     {
         _logger = logger;
-        _options = options.Value;
+        _config = config;
     }
 
     public Task<int> ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Building solution: {Solution}", _options.SolutionPath);
-        var exitCode = ProcessRunner.Run("dotnet", ["build", _options.SolutionPath], _options.WorkingDirectory, _logger);
+        _logger.LogInformation("Building solution: {Solution}", _config.SolutionPath);
+        var exitCode = ProcessRunner.Run("dotnet", ["build", _config.SolutionPath], _config.WorkingDirectory, _logger);
         return Task.FromResult(exitCode);
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PipelineRunner.Configuration;
 using PipelineRunner.Options;
 using PipelineRunner.Services;
 using PipelineRunner.Steps;
@@ -54,6 +55,11 @@ builder.Services
     .AddSingleton<IValidateOptions<DatasetSettings>, DatasetSettingsValidator>()
     .AddSingleton<IValidateOptions<ValidationSettings>, ValidationSettingsValidator>()
     .AddSingleton<IValidateOptions<TrainingSettings>, TrainingSettingsValidator>()
+    .AddSingleton(sp => PipelineConfigFactory.Create(
+        sp.GetRequiredService<IOptions<PipelineOptions>>().Value,
+        sp.GetRequiredService<IOptions<DatasetSettings>>().Value,
+        sp.GetRequiredService<IOptions<TrainingSettings>>().Value,
+        sp.GetRequiredService<IOptions<SimulationSettings>>().Value))
     .AddScoped<BuildStep>()
     .AddScoped<TelemetryStep>()
     .AddScoped<QualityCheckStep>()
@@ -62,7 +68,7 @@ builder.Services
     .AddScoped<ITrainingJob, TrainingJob>();
 
 using var host = builder.Build();
-var options = host.Services.GetRequiredService<IOptions<PipelineOptions>>().Value;
+var pipelineConfig = host.Services.GetRequiredService<PipelineConfig>();
 var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Pipeline");
 
 async Task<int> RunStepAsync(Func<IServiceProvider, Task<int>> executor)
@@ -73,10 +79,10 @@ async Task<int> RunStepAsync(Func<IServiceProvider, Task<int>> executor)
 
 var steps = new List<(string Name, bool Enabled, Func<Task<int>> Action)>
 {
-    ("build", options.ShouldRunBuild, () => RunStepAsync(sp => sp.GetRequiredService<BuildStep>().ExecuteAsync())),
-    ("telemetry", options.ShouldRunTelemetry, () => RunStepAsync(sp => sp.GetRequiredService<TelemetryStep>().ExecuteAsync())),
-    ("check", options.ShouldRunCheck, () => RunStepAsync(sp => sp.GetRequiredService<QualityCheckStep>().ExecuteAsync())),
-    ("train", options.ShouldRunTrain, () => RunStepAsync(sp => sp.GetRequiredService<TrainStep>().ExecuteAsync()))
+    ("build", pipelineConfig.ShouldRunBuild, () => RunStepAsync(sp => sp.GetRequiredService<BuildStep>().ExecuteAsync())),
+    ("telemetry", pipelineConfig.ShouldRunTelemetry, () => RunStepAsync(sp => sp.GetRequiredService<TelemetryStep>().ExecuteAsync())),
+    ("check", pipelineConfig.ShouldRunCheck, () => RunStepAsync(sp => sp.GetRequiredService<QualityCheckStep>().ExecuteAsync())),
+    ("train", pipelineConfig.ShouldRunTrain, () => RunStepAsync(sp => sp.GetRequiredService<TrainStep>().ExecuteAsync()))
 };
 
 foreach (var step in steps)

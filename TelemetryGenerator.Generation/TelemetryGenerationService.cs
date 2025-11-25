@@ -40,16 +40,16 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         _moduleProvider = moduleProvider;
     }
 
-    public async Task GenerateAsync(TelemetryGenerationOptions options, CancellationToken cancellationToken = default)
+    public async Task GenerateAsync(GenerationConfig config, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(config);
 
-        Validate(options);
+        Validate(config);
 
-        var rnd = _randomFactory.Create(options.Seed);
-        var difficulty = options.Difficulty;
-        var nodeProfile = options.NodeProfile ?? "randomized";
-        var config = CreateNodeConfig(nodeProfile, options.WorkstationId, options.SpeakersConfigured, difficulty, rnd);
+        var rnd = _randomFactory.Create(config.Seed);
+        var difficulty = config.Difficulty;
+        var nodeProfile = config.NodeProfile ?? "randomized";
+        var nodeConfig = CreateNodeConfig(nodeProfile, config.WorkstationId, config.SpeakersConfigured, difficulty, rnd);
 
         var anomalyInjector = _anomalyInjectorFactory.Create();
         var maintenanceScheduler = _maintenanceSchedulerFactory.Create();
@@ -64,50 +64,50 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
             anomalyInjector,
             maintenanceScheduler);
 
-        var scenario = _scenarioRegistry.Resolve(options.Scenario, difficulty, anomalyInjector);
-        var endTime = options.Start + options.Duration;
+        var scenario = _scenarioRegistry.Resolve(config.Scenario, difficulty, anomalyInjector);
+        var endTime = config.Start + config.Duration;
         var samples = generator
-            .Run(config, scenario, options.Start, options.Step, rnd)
+            .Run(nodeConfig, scenario, config.Start, config.Step, rnd)
             .TakeWhile(sample => sample.Timestamp < endTime);
 
-        await WriteCsvAsync(options.OutputPath, samples, cancellationToken).ConfigureAwait(false);
+        await WriteCsvAsync(config.OutputPath, samples, cancellationToken).ConfigureAwait(false);
     }
 
-    private static void Validate(TelemetryGenerationOptions options)
+    private static void Validate(GenerationConfig config)
     {
-        if (string.IsNullOrWhiteSpace(options.Scenario))
+        if (string.IsNullOrWhiteSpace(config.Scenario))
         {
-            throw new ArgumentException("Scenario is required.", nameof(options));
+            throw new ArgumentException("Scenario is required.", nameof(config));
         }
 
-        if (options.Step <= TimeSpan.Zero)
+        if (config.Step <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), "Step must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(config), "Step must be positive.");
         }
 
-        if (options.Duration <= TimeSpan.Zero)
+        if (config.Duration <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), "Duration must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(config), "Duration must be positive.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.WorkstationId))
+        if (string.IsNullOrWhiteSpace(config.WorkstationId))
         {
-            throw new ArgumentException("WorkstationId is required.", nameof(options));
+            throw new ArgumentException("WorkstationId is required.", nameof(config));
         }
 
-        if (options.SpeakersConfigured < 1)
+        if (config.SpeakersConfigured < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), "SpeakersConfigured must be positive.");
+            throw new ArgumentOutOfRangeException(nameof(config), "SpeakersConfigured must be positive.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.OutputPath))
+        if (string.IsNullOrWhiteSpace(config.OutputPath))
         {
-            throw new ArgumentException("OutputPath is required.", nameof(options));
+            throw new ArgumentException("OutputPath is required.", nameof(config));
         }
 
-        if (options.Seed is < 0)
+        if (config.Seed is < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(options), "Seed must be non-negative when specified.");
+            throw new ArgumentOutOfRangeException(nameof(config), "Seed must be non-negative when specified.");
         }
     }
 

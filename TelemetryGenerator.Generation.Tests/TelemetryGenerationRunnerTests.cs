@@ -35,17 +35,17 @@ public sealed class TelemetryGenerationRunnerTests
 
         await runner.RunAsync(new TelemetryGenerationRequest());
 
-        Assert.NotNull(service.Options);
-        Assert.Equal(simulationSettings.Scenario, service.Options!.Scenario);
-        Assert.Equal(Difficulty.Hard, service.Options.Difficulty);
-        Assert.Equal(DateTime.Parse(simulationSettings.Start), service.Options.Start);
-        Assert.Equal(TimeSpan.FromHours(2), service.Options.Duration);
-        Assert.Equal(TimeSpan.FromMinutes(simulationSettings.StepMinutes), service.Options.Step);
-        Assert.Equal(simulationSettings.WorkstationId, service.Options.WorkstationId);
-        Assert.Equal(simulationSettings.SpeakersConfigured, service.Options.SpeakersConfigured);
-        Assert.Equal(simulationSettings.NodeProfile, service.Options.NodeProfile);
-        Assert.Equal(Path.GetFullPath(simulationSettings.OutputPath), service.Options.OutputPath);
-        Assert.Equal(simulationSettings.Seed, service.Options.Seed);
+        Assert.NotNull(service.Config);
+        Assert.Equal(simulationSettings.Scenario, service.Config!.Scenario);
+        Assert.Equal(Difficulty.Hard, service.Config.Difficulty);
+        Assert.Equal(DateTime.Parse(simulationSettings.Start), service.Config.Start);
+        Assert.Equal(TimeSpan.FromHours(2), service.Config.Duration);
+        Assert.Equal(TimeSpan.FromMinutes(simulationSettings.StepMinutes), service.Config.Step);
+        Assert.Equal(simulationSettings.WorkstationId, service.Config.WorkstationId);
+        Assert.Equal(simulationSettings.SpeakersConfigured, service.Config.SpeakersConfigured);
+        Assert.Equal(simulationSettings.NodeProfile, service.Config.NodeProfile);
+        Assert.Equal(Path.GetFullPath(simulationSettings.OutputPath), service.Config.OutputPath);
+        Assert.Equal(simulationSettings.Seed, service.Config.Seed);
     }
 
     [Fact]
@@ -87,26 +87,26 @@ public sealed class TelemetryGenerationRunnerTests
 
         await runner.RunAsync(request);
 
-        Assert.NotNull(service.Options);
-        Assert.Equal(request.Scenario, service.Options!.Scenario);
-        Assert.Equal(Difficulty.Easy, service.Options.Difficulty);
-        Assert.Equal(DateTime.Parse(request.Start), service.Options.Start);
-        Assert.Equal(TimeSpan.FromHours(1), service.Options.Duration);
-        Assert.Equal(TimeSpan.FromMinutes(request.StepMinutes), service.Options.Step);
-        Assert.Equal(request.WorkstationId, service.Options.WorkstationId);
-        Assert.Equal(request.SpeakersConfigured, service.Options.SpeakersConfigured);
-        Assert.Equal(request.NodeProfile, service.Options.NodeProfile);
-        Assert.Equal(Path.GetFullPath(request.OutputPath), service.Options.OutputPath);
-        Assert.Equal(request.Seed, service.Options.Seed);
+        Assert.NotNull(service.Config);
+        Assert.Equal(request.Scenario, service.Config!.Scenario);
+        Assert.Equal(Difficulty.Easy, service.Config.Difficulty);
+        Assert.Equal(DateTime.Parse(request.Start), service.Config.Start);
+        Assert.Equal(TimeSpan.FromHours(1), service.Config.Duration);
+        Assert.Equal(TimeSpan.FromMinutes(request.StepMinutes), service.Config.Step);
+        Assert.Equal(request.WorkstationId, service.Config.WorkstationId);
+        Assert.Equal(request.SpeakersConfigured, service.Config.SpeakersConfigured);
+        Assert.Equal(request.NodeProfile, service.Config.NodeProfile);
+        Assert.Equal(Path.GetFullPath(request.OutputPath), service.Config.OutputPath);
+        Assert.Equal(request.Seed, service.Config.Seed);
     }
 
     private sealed class CapturingGenerationService : ITelemetryGenerationService
     {
-        public TelemetryGenerationOptions? Options { get; private set; }
+        public GenerationConfig? Config { get; private set; }
 
-        public Task GenerateAsync(TelemetryGenerationOptions options, CancellationToken cancellationToken = default)
+        public Task GenerateAsync(GenerationConfig config, CancellationToken cancellationToken = default)
         {
-            Options = options;
+            Config = config;
             return Task.CompletedTask;
         }
     }

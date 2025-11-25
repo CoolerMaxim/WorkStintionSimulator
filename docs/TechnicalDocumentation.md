@@ -12,7 +12,7 @@
 ### Проєкти
 - **TelemetryGenerator.Core** — ядро симулятора: моделі стану, аномалії, сценарії, модулі обладнання, генератор часових рядів.
 - **TelemetryGenerator.Generation** — сервісна бібліотека, що збирає DI‑компоненти, реєструє сценарії та записує CSV.
-- **TelemetryGenerator.Cli** — оболонка для запуску генерації з DI або веб/CLI: перетворення запиту на `TelemetryGenerationOptions`, валідація вводу, конфіг з `SimulationSettings`.
+- **TelemetryGenerator.Cli** — оболонка для запуску генерації з DI або веб/CLI: перетворення запиту на канонічні `GenerationConfig`/`SimulationConfig`, валідація вводу, конфіг з `SimulationSettings`.
 - **TelemetryGenerator.DataQualityChecker** — набір аналізаторів якості даних та конструктор звітів у Markdown/JSON.
 - **PipelineRunner** — консольний оркестратор кроків build/telemetry/check/train з налаштуванням через `appsettings.json` та аргументи CLI.
 - **AI.Training** — допоміжні конфігурації та ноутбуки для експериментів з ML (не містить виконуваного коду в цій репрезентації).
@@ -29,7 +29,7 @@
 
 ### Ключові класи
 - `TelemetryGenerator.Core.TelemetryGenerator` — головний цикл симуляції: оновлює модулі, інжектує аномалії, планує сервіс, формує `TelemetrySample`.
-- `SimulationSettings`, `TelemetryGenerationOptions`, `TelemetryGenerationRequest` — різні шари налаштувань для симуляції (конфіг, DTO, опції сервісу).
+- `SimulationSettings`, `TelemetryGenerationRequest` — адаптери вводу (рядкові/CLI) для канонічних `SimulationConfig` і `GenerationConfig`.
 - `Scenario`, `ScenarioPhase`, `ScenarioFactory`, `ScenarioRegistry` — декларація сценаріїв і зв’язування назв з фабриками.
 - `AnomalyConfiguration` та пов’язані профілі — параметризація тривалості/ваг аномалій і залежностей.
 - `TelemetryGenerationService` — реалізація `ITelemetryGenerationService`: збирає конфіг, створює моделі, запускає генератор і пише CSV.
@@ -39,8 +39,8 @@
 
 ## 3. Основні сценарії роботи системи
 ### Генерація телеметрії
-1. **Вхід**: `TelemetryGenerationRequest` (CLI/web) або `TelemetryGenerationOptions` (безпосередньо).
-2. **Runner**: `TelemetryGenerationRunner.BuildTelemetryGenerationOptions()` зливає запит із `SimulationSettings`, парсить тривалість/час старту, нормалізує шляхи, перевіряє валідність (порожні поля, крок > тривалості тощо) і логує параметри.
+1. **Вхід**: `TelemetryGenerationRequest` (CLI/web) → `GenerationConfig` (канонічний контракт сервісу).
+2. **Runner**: `GenerationConfigFactory.Create()` зливає запит із `SimulationSettings`, парсить тривалість/час старту, нормалізує шляхи, перевіряє валідність (порожні поля, крок > тривалості тощо) і логує параметри.
 3. **Сервіс**: `TelemetryGenerationService.GenerateAsync()` створює `Random`, будує `NodeConfig` за профілем (`fixed`/`randomized`), фабрикує `AnomalyInjector`, `MaintenanceScheduler`, `BatteryModel`, `TemperatureModel`, модулі вузла й обирає сценарій через `ScenarioRegistry`.
 4. **Цикл**: `TelemetryGenerator.Run()` проходить фази сценарію, на кожному кроці (TimeSpan `Step`) виконує: оновлення доступності живлення, `IModule.Update` для всіх модулів, оновлення батареї, інжекцію аномалій, планування сервісу, обчислення супервізорних сигналів (здоров’я ПЗ/вузла) і проєкцію в `TelemetrySample`.
 5. **Вихід**: `TelemetryGenerationService` перетворює вибірку на CSV (рядок заголовка + значення з форматуванням) і зберігає у `OutputPath`.
@@ -133,12 +133,14 @@
 
 ## 7. Конфігуровані класи та властивості
 - **`SimulationSettings`**: `Scenario`, `Difficulty`, `Start`, `Duration`, `StepMinutes`, `WorkstationId`, `SpeakersConfigured`, `NodeProfile`, `OutputPath`, `Seed` (дефолти: normal-day/Normal/24h/5 хв/WS-001/4/randomized/./telemetry.csv/null). Обов’язкові: Scenario, WorkstationId, Duration>0, StepMinutes>0.
-- **`TelemetryGenerationOptions`**: ті самі поля у типізованому вигляді (`TimeSpan`/`DateTime`/`Difficulty`), формується Runner’ом; усі ключові поля проходять валідацію в `TelemetryGenerationService`.
-- **`TelemetryGenerationRequest`**: DTO з сирими рядковими значеннями для CLI/web.
+- **`SimulationConfig`**: типізований контракт симуляції (без рядкових полів) із застосованими дефолтами/нормалізацією.
+- **`GenerationConfig`**: `SimulationConfig` + `OutputPath`, `Seed` — канонічний контракт сервісу генерації.
+- **`TelemetryGenerationRequest`**: DTO з сирими рядковими значеннями для CLI/web, мапиться у `GenerationConfig` через `GenerationConfigFactory`.
 - **`PipelineOptions`**: дублює параметри Simulation + `SolutionPath`, `TelemetryProjectPath`, `WorkingDirectory`, прапорці `RunAll/Build/Telemetry/Check/Train`, список `Steps`.
 - **`DatasetSettings`**: шляхи до вхідного CSV та звітів; похідні властивості `Resolved*` нормалізують шляхи.
 - **`ValidationSettings` / `DataQualityCheckerOptions`**: прапорці `Enable*Analyzer` для підключення/вимкнення окремих перевірок.
 - **`TrainingSettings`**: `WorkingDirectory`, `OutputDirectory`, `TrainFraction`, `EvaluationFraction`, `ModelType`, `Seed`; метод `ToPipelineOptions()` готує опції для ML‑пайплайну.
+- **`DatasetConfig` / `TrainingConfig` / `PipelineConfig`**: канонічні типізовані агрегати для пайплайну (телеметрія + датасет + ML), будуються через `PipelineConfigFactory` з відповідних секцій `appsettings.json`.
 
 ## 8. Зовнішні залежності
 - **NuGet**: `Microsoft.Extensions.DependencyInjection`/`Options`/`Logging` (через SDK) для DI, конфігурацій і логування; інших сторонніх ML/БД бібліотек у кодовій базі немає.
