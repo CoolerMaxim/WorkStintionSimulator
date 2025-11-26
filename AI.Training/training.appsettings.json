@@ -1,7 +1,0 @@
-{
-  "training": {
-    "seed": 7,
-    "trainFraction": 0.7,
-    "evaluationFraction": 0.5
-  }
-}
