@@ -1,3 +1,4 @@
+using System.Linq;
 using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
 using TelemetryGenerator.Core.Models;
@@ -10,28 +11,39 @@ public static class ScenarioFactory
 {
     public static Scenario CreateNormalDayScenario(Difficulty difficulty)
     {
+        var config = NormalDayScenarioProfiles.Build(difficulty);
+        var phases = config.Phases
+            .Select(phase => new ScenarioPhase(phase.Duration, (state, nodeConfig, profile, rnd) =>
+            {
+                if (phase.ResetState)
+                {
+                    ResetState(state, nodeConfig);
+                }
+
+                state.CoolingEfficiency = phase.CoolingEfficiency;
+                state.SoundStatus = phase.SoundStatus;
+            }))
+            .ToList();
+
+        var insertions = config.Insertions
+            .Select(insert => new ScenarioInsertion(insert.AfterPhaseIndex, new ScenarioPhase(insert.Phase.Duration, (state, nodeConfig, profile, rnd) =>
+            {
+                if (insert.Phase.ResetState)
+                {
+                    ResetState(state, nodeConfig);
+                }
+
+                state.CoolingEfficiency = insert.Phase.CoolingEfficiency;
+                state.SoundStatus = insert.Phase.SoundStatus;
+            })))
+            .ToList();
+
         return new Scenario(
             "NormalDay",
             difficulty,
-            new[]
-            {
-                new ScenarioPhase(TimeSpan.FromHours(6), (state, config, profile, rnd) =>
-                {
-                    ResetState(state, config);
-                    state.CoolingEfficiency = 0.9;
-                    state.SoundStatus = false;
-                }),
-                new ScenarioPhase(TimeSpan.FromHours(10), (state, config, profile, rnd) =>
-                {
-                    state.CoolingEfficiency = 0.85;
-                    state.SoundStatus = true;
-                }),
-                new ScenarioPhase(TimeSpan.FromHours(8), (state, config, profile, rnd) =>
-                {
-                    state.SoundStatus = false;
-                    state.CoolingEfficiency = 0.95;
-                })
-            });
+            phases,
+            RepeatPhasesUntilDuration: config.RepeatUntilDuration,
+            Insertions: insertions);
     }
 
     public static Scenario CreateLongPowerLossWithCutoffScenario(Difficulty difficulty, AnomalyInjector injector)

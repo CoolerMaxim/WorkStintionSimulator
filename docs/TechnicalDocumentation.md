@@ -171,7 +171,7 @@
 6. Для інтеграції в інші сервіси — додати `TelemetryGenerationRunner` у DI та викликати `RunAsync` із власним `TelemetryGenerationRequest`.
 7. Для ML‑експериментів — переглянути `AI.Training` і налаштувати `TrainingSettings`.
 8. Для дебагу симуляції — звернути увагу на `TelemetryGenerator.Core.TelemetryGenerator` та модулі в `TelemetryGenerator.Core.Modules`.
-9. Для зміни сценаріїв — редагувати `ScenarioFactory`/`ScenarioRegistry` і параметри аномалій у `AnomalyConfigurationFactory`.
+9. Для зміни сценаріїв — редагувати `ScenarioFactory`/`ScenarioRegistry` і параметри аномалій у `AnomalyConfigurationFactory`. `normal-day` тепер описаний через параметризовані фази й повторює добовий цикл до досягнення `Duration`; додаткові короткі події можна додавати через `ScenarioInsertion` між фазами циклу.
 10. Додаткові параметри дефолтів — у `TelemetryGenerator.Core.Configuration` (`TelemetryDefaults`, `SimulationSettings`).
 
 **Глосарій**

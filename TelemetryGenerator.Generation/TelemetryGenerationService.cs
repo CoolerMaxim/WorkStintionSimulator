@@ -70,7 +70,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
         var scenario = _scenarioRegistry.Resolve(config.Scenario, difficulty, anomalyInjector);
         var endTime = config.Start + config.Duration;
         var samples = generator
-            .Run(nodeConfig, scenario, config.Start, config.Step, rnd)
+            .Run(nodeConfig, scenario, config.Start, config.Step, endTime, rnd)
             .TakeWhile(sample => sample.Timestamp < endTime);
 
         await WriteCsvAsync(config.OutputPath, samples, cancellationToken).ConfigureAwait(false);
