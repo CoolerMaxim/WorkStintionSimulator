@@ -1,3 +1,4 @@
+using System.Linq;
 using TelemetryGenerator.Core.Configuration;
 using TelemetryGenerator.Core.Enums;
 using TelemetryGenerator.Core.Models;
@@ -33,6 +34,7 @@ public sealed class TelemetryGenerator
         Scenario scenario,
         DateTime startTime,
         TimeSpan step,
+        DateTime endTime,
         Random rnd)
     {
         if (step <= TimeSpan.Zero)
@@ -40,37 +42,69 @@ public sealed class TelemetryGenerator
             throw new ArgumentOutOfRangeException(nameof(step), "Step must be positive.");
         }
 
+        if (endTime <= startTime)
+        {
+            yield break;
+        }
+
         var profile = DifficultyProfiles.Create(scenario.Difficulty);
         var state = CreateInitialState(config, scenario, startTime);
+        var basePhases = BuildCyclePhases(scenario);
 
-        foreach (var phase in scenario.Phases)
+        do
         {
-            var phaseStart = state.Timestamp;
-            var phaseEnd = phaseStart + phase.Duration;
-            phase.ConfigurePhase(state, config, profile, rnd);
-
-            while (state.Timestamp < phaseEnd)
+            foreach (var phase in basePhases)
             {
-                UpdatePowerAvailability(state, step);
+                var phaseStart = state.Timestamp;
+                var phaseEnd = phaseStart + phase.Duration;
+                phase.ConfigurePhase(state, config, profile, rnd);
 
-                foreach (var module in _modules)
+                while (state.Timestamp < phaseEnd && state.Timestamp < endTime)
                 {
-                    module.Update(state, config, step, rnd);
+                    UpdatePowerAvailability(state, step);
+
+                    foreach (var module in _modules)
+                    {
+                        module.Update(state, config, step, rnd);
+                    }
+
+                    var loadCurrent = CalculateLoadCurrent(config, state);
+                    _batteryModel.Update(state, config, step, loadCurrent, state.PowerStatus, state.IsChargingFromGrid);
+
+                    _anomalyInjector.Update(state, config, profile, step, rnd);
+                    _maintenanceScheduler.Update(state, config, profile, rnd);
+
+                    UpdateSupervisorySignals(state, config, step);
+
+                    yield return Project(state, config);
+
+                    state.Timestamp += step;
                 }
 
-                var loadCurrent = CalculateLoadCurrent(config, state);
-                _batteryModel.Update(state, config, step, loadCurrent, state.PowerStatus, state.IsChargingFromGrid);
-
-                _anomalyInjector.Update(state, config, profile, step, rnd);
-                _maintenanceScheduler.Update(state, config, profile, rnd);
-
-                UpdateSupervisorySignals(state, config, step);
-
-                yield return Project(state, config);
-
-                state.Timestamp += step;
+                if (state.Timestamp >= endTime)
+                {
+                    yield break;
+                }
             }
         }
+        while (scenario.RepeatPhasesUntilDuration && state.Timestamp < endTime);
+    }
+
+    private static IReadOnlyList<ScenarioPhase> BuildCyclePhases(Scenario scenario)
+    {
+        if (scenario.Insertions is null || scenario.Insertions.Count == 0)
+        {
+            return scenario.Phases;
+        }
+
+        var phases = scenario.Phases.ToList();
+        foreach (var insertion in scenario.Insertions.OrderByDescending(i => i.AfterPhaseIndex))
+        {
+            var index = Math.Clamp(insertion.AfterPhaseIndex + 1, 0, phases.Count);
+            phases.Insert(index, insertion.Phase);
+        }
+
+        return phases;
     }
 
     private static NodeState CreateInitialState(NodeConfig config, Scenario scenario, DateTime startTime)
