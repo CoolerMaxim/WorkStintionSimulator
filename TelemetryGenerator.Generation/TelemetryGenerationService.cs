@@ -135,7 +135,9 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
 
         await using var writer = new StreamWriter(outputPath);
         await writer.WriteLineAsync(
-            "Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,InsideTemperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus,AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType,NodeUptimeMinutes,TotalRuntimeHours,RestartCount,RecentRestarts,SoftwareHealth,FirmwareVersion,SoftwareVersion,HardwareRevision,FaultCounters,HealthState,IncidentLog,NodeOnline").ConfigureAwait(false);
+            "Timestamp,WorkStationId,PowerStatus,BatteryStatus,BatteryVoltage,CpuTemperature,InsideTemperature,DiskSpaceUse,DoorOpenStatus,AmplifierStatus," +
+            "AmplifierOutPower,SoundStatus,SignalStrength,NetworkLatency,SpeakersConfigured,IsAnomaly,AnomalyType,MaintenanceType,NodeUptimeMinutes,TotalRuntimeHours," +
+            "RestartCount,SoftwareHealth,FirmwareVersion,SoftwareVersion,HardwareRevision,FaultCounters,HealthState,NodeOnline").ConfigureAwait(false);
 
         foreach (var sample in samples)
         {
@@ -164,14 +166,7 @@ public sealed class TelemetryGenerationService : ITelemetryGenerationService
                 sample.NodeUptime.TotalMinutes.ToString("F1", CultureInfo.InvariantCulture),
                 sample.TotalRuntime.TotalHours.ToString("F1", CultureInfo.InvariantCulture),
                 sample.RestartCount.ToString(CultureInfo.InvariantCulture),
-                Quote(string.Join('|', sample.RestartHistory.Select(r => r.ToString("O", CultureInfo.InvariantCulture)))),
-                Quote(sample.SoftwareHealth.ToSummaryString()),
-                Quote(sample.FirmwareVersion),
-                Quote(sample.SoftwareVersion),
-                Quote(sample.HardwareRevision),
-                Quote(sample.FaultCounters.ToSummaryString()),
                 sample.HealthState.ToString(),
-                Quote(string.Join('|', sample.IncidentLog.Select(i => i.ToSummaryString()))),
                 sample.IsNodeOnline ? "true" : "false"
             })).ConfigureAwait(false);
         }
